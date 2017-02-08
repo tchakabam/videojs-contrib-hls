@@ -226,7 +226,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
     this.videoGroups_ = {};
 
     this.mediaSource = new videojs.MediaSource({ mode });
-    this.audioinfo_ = null;
+    this.audioInfo_ = null;
+    this.videoInfo_ = null;
     this.mediaSource.on('audioinfo', this.handleAudioinfoUpdate_.bind(this));
     this.mediaSource.on('videoinfo', this.handleVideoinfoUpdate_.bind(this));
 
@@ -265,10 +266,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
     // alternate audio track
     segmentLoaderOptions.loaderType = 'audio';
     this.audioSegmentLoader_ = new SegmentLoader(segmentLoaderOptions);
-    
-    // alternate video track
-    //segmentLoaderOptions.loaderType = 'video';
-    //this.videoSegmentLoader_ = new SegmentLoader(segmentLoaderOptions);
 
     this.decrypter_.onmessage = (event) => {
       if (event.data.source === 'main') {
@@ -407,7 +404,12 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.trigger('audioupdate');
       }
 
-      // TODO: do the above for video! (SH)
+      let activeVideoGroup = this.activeVideoGroup();
+      activeTrack = activeVideoGroup.filter((track) => track.enabled)[0];
+      if (!activeTrack) {
+        this.setupVideo();
+        this.trigger('videoupdate');
+      }
 
       this.tech_.trigger({
         type: 'mediachange',
@@ -453,23 +455,23 @@ export class MasterPlaylistController extends videojs.EventTarget {
       this.audioPlaylistLoader_ = null;
       this.setupAudio();
     });
-
-    /*
-    this.videoSegmentLoader_.on('syncinfoupdate', () => {
-      this.onSyncInfoUpdate_();
-    });
-
-    this.videoSegmentLoader_.on('error', () => {
-      videojs.log.warn('Problem encountered with the current alternate video track' +
-                       '. Switching back to default.');
-      this.videoSegmentLoader_.abort();
-      this.videoPlaylistLoader_ = null;
-      this.setupVideo();
-    });
-    */
   }
 
   handleVideoinfoUpdate_(event) {
+
+    // FIXME: do we need to check Hls.supportsAudioInfoChange_() (SH)
+    if (Hls.supportsAudioInfoChange_() ||
+        !this.videoInfo_ ||
+        !objectChanged(this.videoInfo_, event.info)) {
+      this.videoInfo_ = event.info;
+
+      console.log('new video info');
+      console.log(this.videoInfo_);
+
+      return;
+    }
+
+    /*
     let enabledIndex =
         this.activeVideoGroup()
           .map((track) => track.enabled)
@@ -478,8 +480,10 @@ export class MasterPlaylistController extends videojs.EventTarget {
     let defaultTrack = this.activeVideoGroup().filter((track) => {
       return track.properties_ && track.properties_.default;
     })[0];
+    */
 
-    this.setupVideo();
+    // we assume that codec compatibility across renditions is given!
+
   }
 
   handleAudioinfoUpdate_(event) {
@@ -488,7 +492,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
         !this.audioInfo_ ||
         !objectChanged(this.audioInfo_, event.info)) {
       this.audioInfo_ = event.info;
-
       return;
     }
 
@@ -1230,12 +1233,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
     if (mimeTypes[1]) {
       this.audioSegmentLoader_.mimeType(mimeTypes[1]);
     }
-
-    /*
-    if (this.activeVideoGroup().length > 0) {
-      this.videoSegmentLoader_.mimeType(mimeTypes[0]);
-    }
-    */
 
     // exclude any incompatible variant streams from future playlist
     // selection
