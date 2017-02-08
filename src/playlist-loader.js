@@ -503,6 +503,12 @@ const PlaylistLoader = function(srcUrl, hls, withCredentials) {
           for (let labelKey in loader.master.mediaGroups.VIDEO[groupKey]) {
             let alternateVideo = loader.master.mediaGroups.VIDEO[groupKey][labelKey];
 
+            // if no alternate URI is defined in the media-groups, it means this rendition points
+            // to the URI of the actual media playlist by default
+            if (!alternateVideo.uri) {
+              alternateVideo.uri = playlist.uri;              
+            }
+
             if (alternateVideo.uri) {
               alternateVideo.resolvedUri = 
                 resolveUrl(loader.master.uri, alternateVideo.uri);
