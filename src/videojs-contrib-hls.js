@@ -543,6 +543,14 @@ class HlsHandler extends Component {
       });
     });
 
+    this.masterPlaylistController_.on('videoupdate', () => {
+      // clear current audioTracks
+      this.tech_.clearTracks('video');
+      this.masterPlaylistController_.activeVideoGroup().forEach((videoTrack) => {
+        this.tech_.videoTracks().addTrack(videoTrack);
+      });
+    });
+
     // the bandwidth of the primary segment loader is our best
     // estimate of overall bandwidth
     this.on(this.masterPlaylistController_, 'progress', function() {
