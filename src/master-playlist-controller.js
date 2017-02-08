@@ -588,6 +588,17 @@ export class MasterPlaylistController extends videojs.EventTarget {
     let master = this.master();
     let mediaGroups = master.mediaGroups || {};
 
+    // force a default if we have none or we are not
+    // in html5 mode (the only mode to support more than one
+    // audio track)
+    if (!mediaGroups ||
+        !mediaGroups.VIDEO ||
+        Object.keys(mediaGroups.VIDEO).length === 0 ||
+        this.mode_ !== 'html5') {
+      // "main" audio group, track name "default"
+      mediaGroups.VIDEO = { main: { default: { default: true }}};
+    }
+
     for (let mediaGroup in mediaGroups.VIDEO) {
       if (!this.videoGroups_[mediaGroup]) {
         this.videoGroups_[mediaGroup] = [];
@@ -608,12 +619,10 @@ export class MasterPlaylistController extends videojs.EventTarget {
       }
     }
 
-    /*
     // enable the default active track
     (this.activeVideoGroup().filter((videoTrack) => {
       return videoTrack.properties_.default;
     })[0] || this.activeVideoGroup()[0]).enabled = true;
-    */
   }
 
   /**
