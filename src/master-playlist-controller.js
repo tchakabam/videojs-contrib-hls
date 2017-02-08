@@ -459,7 +459,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
   handleVideoinfoUpdate_(event) {
 
-    // FIXME: do we need to check Hls.supportsAudioInfoChange_() (SH)
+    // FIXME: we need to have Hls.supportsVideoInfoChange_() as well or see if these overlap with
+    //        audio switching caps (SH)
     if (Hls.supportsAudioInfoChange_() ||
         !this.videoInfo_ ||
         !objectChanged(this.videoInfo_, event.info)) {
@@ -471,7 +472,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
       return;
     }
 
-    /*
     let enabledIndex =
         this.activeVideoGroup()
           .map((track) => track.enabled)
@@ -480,10 +480,19 @@ export class MasterPlaylistController extends videojs.EventTarget {
     let defaultTrack = this.activeVideoGroup().filter((track) => {
       return track.properties_ && track.properties_.default;
     })[0];
-    */
 
-    // we assume that codec compatibility across renditions is given!
+    // FIXME: be more specific here with failure cases and reasons here!
+    //        switching codec might be a problem, but if its just codec parameters that might be totally fine.
+    let error = `The video track '${enabledTrack.label}' that we tried to ` +
+      `switch to had different video codec properties. This might cause issues with decoding.`
+      + `Falling back to the default track now.`;
+    defaultTrack.enabled = true;
+    this.activeVideoGroup().splice(enabledIndex, 1);
+    this.trigger('videoupdate');
 
+    videojs.log.warn(error);
+    
+    this.setupvideo();
   }
 
   handleAudioinfoUpdate_(event) {
@@ -707,15 +716,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
       console.log('Switching to default track enabled');
     }
 
-    if (this.currentEnabledVideoTrackId_ === track.id) {
-      //debugger;
-      console.log('Video track ID is equal');
-      return;
-    }
-
-    this.currentEnabledVideoTrackId_ = track.id;
-
-    console.log('Enabling new video track rendition: ' + this.currentEnabledVideoTrackId_);
+    console.log('Enabling new video track rendition: ' + track.id);
 
     // stop playlist and segment loading for video
     if (this.videoPlaylistLoader_) {
