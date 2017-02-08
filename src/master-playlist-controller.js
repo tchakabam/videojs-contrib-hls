@@ -228,6 +228,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
     this.mediaSource = new videojs.MediaSource({ mode });
     this.audioinfo_ = null;
     this.mediaSource.on('audioinfo', this.handleAudioinfoUpdate_.bind(this));
+    this.mediaSource.on('videoinfo', this.handleVideoinfoUpdate_.bind(this));
 
     // load the media source into the player
     this.mediaSource.addEventListener('sourceopen', this.handleSourceOpen_.bind(this));
@@ -467,7 +468,18 @@ export class MasterPlaylistController extends videojs.EventTarget {
     */
   }
 
-  // TODO: do the below for video (SH)
+  handleVideoinfoUpdate_(event) {
+    let enabledIndex =
+        this.activeVideoGroup()
+          .map((track) => track.enabled)
+          .indexOf(true);
+    let enabledTrack = this.activeVideoGroup()[enabledIndex];
+    let defaultTrack = this.activeVideoGroup().filter((track) => {
+      return track.properties_ && track.properties_.default;
+    })[0];
+
+    this.setupVideo();
+  }
 
   handleAudioinfoUpdate_(event) {
     
@@ -583,10 +595,12 @@ export class MasterPlaylistController extends videojs.EventTarget {
       }
     }
 
+    /*
     // enable the default active track
     (this.activeVideoGroup().filter((videoTrack) => {
       return videoTrack.properties_.default;
     })[0] || this.activeVideoGroup()[0]).enabled = true;
+    */
   }
 
   /**
@@ -674,7 +688,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
   setupVideo() {
 
-
     // determine whether seperate loaders are required for the audio
     // rendition
     let videoGroup = this.activeVideoGroup();
@@ -682,14 +695,23 @@ export class MasterPlaylistController extends videojs.EventTarget {
       return videoTrack.enabled;
     })[0];
 
-    //track = videoGroup[1];
-
     if (!track) {
       track = videoGroup.filter((videoTrack) => {
         return videoTrack.properties_.default;
       })[0] || videoGroup[0];
       track.enabled = true;
+      console.log('Switching to default track enabled');
     }
+
+    if (this.currentEnabledVideoTrackId_ === track.id) {
+      //debugger;
+      console.log('Video track ID is equal');
+      return;
+    }
+
+    this.currentEnabledVideoTrackId_ = track.id;
+
+    console.log('Enabling new video track rendition: ' + this.currentEnabledVideoTrackId_);
 
     // stop playlist and segment loading for video
     if (this.videoPlaylistLoader_) {
