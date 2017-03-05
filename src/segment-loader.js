@@ -83,6 +83,20 @@ const initSegmentId = function(initSegment) {
 };
 
 /**
+ * Compare two quality attributes of eventual playlists.
+ * This might perform better than the "dirty" JSON stringify way.
+ * @return true when attributes are deeply equal
+ */
+const qualitiesDiffer = function(attr1, attr2) {
+  return ! (
+    attr1['RESOLUTION'].width === attr2['RESOLUTION'].width
+    && attr1['RESOLUTION'].height === attr2['RESOLUTION'].height
+    && attr1['BANDWIDTH'] === attr2['BANDWIDTH']
+    && attr1['PROGRAM-ID'] === attr2['PROGRAM-ID']
+  );
+}
+
+/**
  * An object that manages segment loading and appending.
  *
  * @class SegmentLoader
@@ -131,6 +145,8 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.mimeType_ = null;
     this.sourceUpdater_ = null;
     this.xhrOptions_ = null;
+    this.qualitySwitchesPending_ = [];
+    this.qualitySwitchHistory_ = [];
 
     // Fragmented mp4 playback
     this.activeInitSegmentId_ = null;
@@ -317,6 +333,16 @@ export default class SegmentLoader extends videojs.EventTarget {
     }
 
     if (!oldPlaylist || oldPlaylist.uri !== newPlaylist.uri) {
+
+      // first playlist or playlist with new quality attributes (not assumable only by URI diff)
+      // enqueue quality switch as pending!
+      if (this.hasPlayed_()
+        && (!oldPlaylist || qualitiesDiffer(oldPlaylist.attributes, newPlaylist.attributes))) {
+        this.qualitySwitchesPending_.push(newPlaylist.attributes);
+        this.logger_('quality switch pending', newPlaylist.attributes);
+        this.trigger('qualityswitchpending');
+      }
+
       if (this.mediaIndex !== null) {
         // we must "resync" the segment loader when we switch renditions and
         // the segment loader is already synced to the previous rendition
@@ -630,6 +656,20 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.logger_('getMediaInfoForTime',
       'mediaIndex:', mediaIndex,
       'startOfSegment:', startOfSegment);
+
+    let qualitySwitch = this.qualitySwitchesPending_.shift();
+    if (qualitySwitch) {
+      this.qualitySwitchHistory_.push({
+        date: Date.now(),
+        currentTime: currentTime,
+        lastBufferedEnd: lastBufferedEnd,
+        mediaIndex: mediaIndex,
+        startOfSegment: startOfSegment,
+        qualitySwitch: qualitySwitch,
+        buffered: false
+      });
+      this.trigger('qualityswitchprepared');
+    }
 
     return this.generateSegmentInfo_(playlist, mediaIndex, startOfSegment, false);
   }
@@ -1068,6 +1108,17 @@ export default class SegmentLoader extends videojs.EventTarget {
     let segmentInfo = this.pendingSegment_;
     let segment = segmentInfo.segment;
     let isWalkingForward = this.mediaIndex !== null;
+
+    // first lets update eventually the switch history
+    // if we appended the segment to the buffer at the switch point
+    let unbufferedQualitySwitches = this.qualitySwitchHistory_.filter(qs => !qs.buffered);
+    this.logger_('updating unbufferedQualitySwitches: ', unbufferedQualitySwitches);
+    unbufferedQualitySwitches.forEach((qs) => {
+      qs.buffered = qs.currentTime > segmentInfo.startOfSegment
+                    && qs.currentTime < segmentInfo.segment.end;
+      this.logger_('buffered quality switch: ', qs);
+      this.trigger('qualityswitchbuffered');
+    });
 
     this.pendingSegment_ = null;
     this.recordThroughput_(segmentInfo);
