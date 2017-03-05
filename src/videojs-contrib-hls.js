@@ -377,6 +377,10 @@ class HlsHandler extends Component {
       this.masterPlaylistController_.setupAudio();
     };
 
+    this.videoTrackChange_ = () => {
+      this.masterPlaylistController_.setupVideo();
+    };
+
     this.on(this.tech_, 'play', this.play);
   }
 
@@ -525,6 +529,7 @@ class HlsHandler extends Component {
 
     this.masterPlaylistController_.on('sourceopen', () => {
       this.tech_.audioTracks().addEventListener('change', this.audioTrackChange_);
+      this.tech_.videoTracks().addEventListener('change', this.videoTrackChange_);
     });
 
     this.masterPlaylistController_.on('selectedinitialmedia', () => {
@@ -537,6 +542,14 @@ class HlsHandler extends Component {
       this.tech_.clearTracks('audio');
       this.masterPlaylistController_.activeAudioGroup().forEach((audioTrack) => {
         this.tech_.audioTracks().addTrack(audioTrack);
+      });
+    });
+
+    this.masterPlaylistController_.on('videoupdate', () => {
+      // clear current audioTracks
+      this.tech_.clearTracks('video');
+      this.masterPlaylistController_.activeVideoGroup().forEach((videoTrack) => {
+        this.tech_.videoTracks().addTrack(videoTrack);
       });
     });
 
@@ -637,6 +650,7 @@ class HlsHandler extends Component {
       this.qualityLevels_.dispose();
     }
     this.tech_.audioTracks().removeEventListener('change', this.audioTrackChange_);
+    this.tech_.videoTracks().removeEventListener('change', this.videoTrackChange_);
     super.dispose();
   }
 }
