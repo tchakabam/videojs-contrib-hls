@@ -222,6 +222,12 @@ export default class SyncController extends videojs.EventTarget {
     // When a segment expires from the playlist and it has a start time
     // save that information as a possible sync-point reference in future
     for (let i = mediaSequenceDiff - 1; i >= 0; i--) {
+      
+      // mediaSequenceDiff might be larger than the old playlist !!!
+      if (i >= oldPlaylist.segments.length) {
+        continue;
+      }
+
       let lastRemovedSegment = oldPlaylist.segments[i];
 
       if (typeof lastRemovedSegment.start !== 'undefined') {
