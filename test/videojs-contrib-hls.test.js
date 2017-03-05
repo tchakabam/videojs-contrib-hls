@@ -662,6 +662,50 @@ QUnit.test('selects a playlist below the current bandwidth', function(assert) {
   assert.equal(this.player.tech_.hls.stats.bandwidth, 10, 'bandwidth set above');
 });
 
+QUnit.test('selects a primary rendtion when there are multiple rendtions share same attributes', function(assert) {
+  let playlist;
+
+  this.player.src({
+    src: 'manifest/master.m3u8',
+    type: 'application/vnd.apple.mpegurl'
+  });
+  openMediaSource(this.player, this.clock);
+  standardXHRResponse(this.requests[0]);
+
+  // covers playlists with same bandwidth but different resolution and different bandwidth but same resolution
+  this.player.tech_.hls.playlists.master.playlists[0].attributes.BANDWIDTH = 528;
+  this.player.tech_.hls.playlists.master.playlists[1].attributes.BANDWIDTH = 528;
+  this.player.tech_.hls.playlists.master.playlists[2].attributes.BANDWIDTH = 728;
+  this.player.tech_.hls.playlists.master.playlists[3].attributes.BANDWIDTH = 728;
+
+  this.player.tech_.hls.bandwidth = 1000;
+
+  playlist = this.player.tech_.hls.selectPlaylist();
+  assert.strictEqual(playlist,
+                     this.player.tech_.hls.playlists.master.playlists[2],
+                     'select the rendition with largest bandwidth and just-larger-than video player');
+
+  // verify stats
+  assert.equal(this.player.tech_.hls.stats.bandwidth, 1000, 'bandwidth set above');
+
+  // covers playlists share same bandwidth and resolutions
+  this.player.tech_.hls.playlists.master.playlists[0].attributes.BANDWIDTH = 728;
+  this.player.tech_.hls.playlists.master.playlists[0].attributes.RESOLUTION.width = 960;
+  this.player.tech_.hls.playlists.master.playlists[0].attributes.RESOLUTION.height = 540;
+  this.player.tech_.hls.playlists.master.playlists[1].attributes.BANDWIDTH = 728;
+  this.player.tech_.hls.playlists.master.playlists[2].attributes.BANDWIDTH = 728;
+  this.player.tech_.hls.playlists.master.playlists[2].attributes.RESOLUTION.width = 960;
+  this.player.tech_.hls.playlists.master.playlists[2].attributes.RESOLUTION.height = 540;
+  this.player.tech_.hls.playlists.master.playlists[3].attributes.BANDWIDTH = 728;
+
+  this.player.tech_.hls.bandwidth = 1000;
+
+  playlist = this.player.tech_.hls.selectPlaylist();
+  assert.strictEqual(playlist,
+                     this.player.tech_.hls.playlists.master.playlists[0],
+                     'the primary rendition is selected');
+});
+
 QUnit.test('allows initial bandwidth to be provided', function(assert) {
   this.player.src({
     src: 'manifest/master.m3u8',
@@ -1170,8 +1214,8 @@ QUnit.test('estimates seekable ranges for live streams that have been paused for
                'offset the seekable start');
 });
 
-QUnit.test('resets the time to a seekable position when resuming a live stream ' +
-           'after a long break', function(assert) {
+QUnit.test('resets the time to the live point when resuming a live stream after a ' +
+           'long break', function(assert) {
   let seekTarget;
 
   this.player.src({
@@ -1199,10 +1243,10 @@ QUnit.test('resets the time to a seekable position when resuming a live stream '
   };
   this.player.tech_.trigger('playing');
 
+  let seekable = this.player.seekable();
+
   this.player.tech_.trigger('play');
-  assert.equal(seekTarget,
-              this.player.seekable().start(0),
-              'seeked to the start of seekable');
+  assert.equal(seekTarget, seekable.end(seekable.length - 1), 'seeked to live point');
   this.player.tech_.trigger('seeked');
 });
 
@@ -2539,6 +2583,7 @@ QUnit.test('downloads additional playlists if required', function(assert) {
   // media
   this.standardXHRResponse(this.requests[1]);
   originalPlaylist = hls.playlists.media();
+  hls.masterPlaylistController_.mainSegmentLoader_.mediaIndex = 0;
 
   // the playlist selection is revisited after a new segment is downloaded
   this.requests[2].bandwidth = 3000000;
@@ -2581,6 +2626,7 @@ QUnit.test('waits to download new segments until the media playlist is stable', 
 
   // source buffer created after media source is open and first media playlist is selected
   sourceBuffer = hls.mediaSource.sourceBuffers[0];
+  hls.masterPlaylistController_.mainSegmentLoader_.mediaIndex = 0;
 
   // segment 0
   this.standardXHRResponse(this.requests.shift());

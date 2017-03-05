@@ -268,7 +268,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
       if (event.data.source === 'main') {
         this.mainSegmentLoader_.handleDecrypted_(event.data);
       } else if (event.data.source === 'audio') {
-        this.audiosegmentloader_.handleDecrypted_(event.data);
+        this.audioSegmentLoader_.handleDecrypted_(event.data);
       }
     };
 
@@ -288,7 +288,13 @@ export class MasterPlaylistController extends videojs.EventTarget {
       let media = this.masterPlaylistLoader_.media();
       let requestTimeout = (this.masterPlaylistLoader_.targetDuration * 1.5) * 1000;
 
-      this.requestOptions_.timeout = requestTimeout;
+      // If we don't have any more available playlists, we don't want to
+      // timeout the request.
+      if (this.masterPlaylistLoader_.isLowestEnabledRendition_()) {
+        this.requestOptions_.timeout = 0;
+      } else {
+        this.requestOptions_.timeout = requestTimeout;
+      }
 
       // if this isn't a live video and preload permits, start
       // downloading segments
@@ -714,11 +720,13 @@ export class MasterPlaylistController extends videojs.EventTarget {
       this.load();
     }
 
+    let seekable = this.tech_.seekable();
+
     // if the viewer has paused and we fell out of the live window,
-    // seek forward to the earliest available position
+    // seek forward to the live point
     if (this.tech_.duration() === Infinity) {
-      if (this.tech_.currentTime() < this.tech_.seekable().start(0)) {
-        return this.tech_.setCurrentTime(this.tech_.seekable().start(0));
+      if (this.tech_.currentTime() < seekable.start(0)) {
+        return this.tech_.setCurrentTime(seekable.end(seekable.length - 1));
       }
     }
   }
@@ -858,9 +866,14 @@ export class MasterPlaylistController extends videojs.EventTarget {
       return 0;
     }
 
+    // In flash playback, the segment loaders should be reset on every seek, even
+    // in buffer seeks
+    const isFlash = (this.mode_ === 'flash') ||
+                    (this.mode_ === 'auto' && !videojs.MediaSource.supportsNativeMediaSources());
+
     // if the seek location is already buffered, continue buffering as
     // usual
-    if (buffered && buffered.length) {
+    if (buffered && buffered.length && !isFlash) {
       return currentTime;
     }
 
@@ -938,15 +951,20 @@ export class MasterPlaylistController extends videojs.EventTarget {
       // seekable has been calculated based on buffering video data so it
       // can be returned directly
       this.seekable_ = mainSeekable;
-      return;
+    } else if (audioSeekable.start(0) > mainSeekable.end(0) ||
+               mainSeekable.start(0) > audioSeekable.end(0)) {
+      // seekables are pretty far off, rely on main
+      this.seekable_ = mainSeekable;
+    } else {
+      this.seekable_ = videojs.createTimeRanges([[
+        (audioSeekable.start(0) > mainSeekable.start(0)) ? audioSeekable.start(0) :
+                                                           mainSeekable.start(0),
+        (audioSeekable.end(0) < mainSeekable.end(0)) ? audioSeekable.end(0) :
+                                                       mainSeekable.end(0)
+      ]]);
     }
 
-    this.seekable_ = videojs.createTimeRanges([[
-      (audioSeekable.start(0) > mainSeekable.start(0)) ? audioSeekable.start(0) :
-                                                         mainSeekable.start(0),
-      (audioSeekable.end(0) < mainSeekable.end(0)) ? audioSeekable.end(0) :
-                                                     mainSeekable.end(0)
-    ]]);
+    this.tech_.trigger('seekablechanged');
   }
 
   /**
