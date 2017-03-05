@@ -123,6 +123,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.loaderType_ = settings.loaderType;
 
     // private instance variables
+    this.mediaIndexBeforeResync_ = null;
     this.checkBufferTimeout_ = null;
     this.error_ = void 0;
     this.currentTimeline_ = -1;
@@ -336,6 +337,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     // equal to the last appended mediaIndex
     if (this.mediaIndex !== null) {
       this.mediaIndex -= mediaSequenceDiff;
+      this.logger_('mediaIndex update to', this.mediaIndex);
     }
 
     // update the mediaIndex on the SegmentInfo object
@@ -423,6 +425,7 @@ export default class SegmentLoader extends videojs.EventTarget {
    * before returning to the simple walk-forward method
    */
   resyncLoader() {
+    this.mediaIndexBeforeResync_ = this.mediaIndex;
     this.mediaIndex = null;
     this.syncPoint_ = null;
   }
@@ -642,10 +645,16 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @returns {Number} An index of a segment from the playlist to load
    */
   getSyncSegmentCandidate_(playlist) {
+
+    this.logger_('getSyncSegmentCandidate_',
+      'currentTimeline_', this.currentTimeline_);
+
     if (this.currentTimeline_ === -1) {
       return 0;
     }
 
+    // Filter out an array of segments that maps
+    // to our timeline
     let segmentIndexArray = playlist.segments
       .map((s, i) => {
         return {
@@ -655,7 +664,8 @@ export default class SegmentLoader extends videojs.EventTarget {
       }).filter(s => s.timeline === this.currentTimeline_);
 
     if (segmentIndexArray.length) {
-      return segmentIndexArray[Math.min(segmentIndexArray.length - 1, 1)].segmentIndex;
+      this.logger_('Filtered segmentIndexArray', segmentIndexArray);
+      return segmentIndexArray[Math.max(segmentIndexArray.length, 2) - 1].segmentIndex;
     }
 
     return Math.max(playlist.segments.length - 1, 0);
