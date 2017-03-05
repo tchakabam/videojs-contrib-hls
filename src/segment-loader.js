@@ -1198,4 +1198,11 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @private
    */
   logger_() {}
+
+  /**
+   * @returns {Array} A read-only copy of the quality switch history
+   */
+  qualitySwitchHistory() {
+    return this.qualitySwitchHistory_.slice();
+  }
 }
