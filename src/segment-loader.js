@@ -288,6 +288,8 @@ export default class SegmentLoader extends videojs.EventTarget {
       return;
     }
 
+    this.logger_('loading new playlist: ', newPlaylist.uri);
+
     let oldPlaylist = this.playlist_;
     let segmentInfo = this.pendingSegment_;
 
@@ -1053,6 +1055,8 @@ export default class SegmentLoader extends videojs.EventTarget {
   handleUpdateEnd_() {
     this.logger_('handleUpdateEnd_', 'segmentInfo:', this.pendingSegment_);
 
+    // buffer was updated without a segment being appended (e.g removal)
+    // or we may have aborted.
     if (!this.pendingSegment_) {
       this.state = 'READY';
       if (!this.paused()) {
