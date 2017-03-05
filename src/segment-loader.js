@@ -121,6 +121,8 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.mediaSource_ = settings.mediaSource;
     this.hls_ = settings.hls;
     this.loaderType_ = settings.loaderType;
+    this.syncSegmentUseInfiniteWindow_ = settings.syncSegmentUseInfiniteWindow;
+    this.syncSegmentUseAlignment_ = settings.syncSegmentUseAlignment;
 
     // private instance variables
     this.mediaIndexBeforeResync_ = null;
@@ -647,7 +649,8 @@ export default class SegmentLoader extends videojs.EventTarget {
   getSyncSegmentCandidate_(playlist) {
 
     this.logger_('getSyncSegmentCandidate_',
-      'currentTimeline_', this.currentTimeline_);
+      'currentTimeline_', this.currentTimeline_,
+      'mediaIndexBeforeResync_', this.mediaIndexBeforeResync_);
 
     if (this.currentTimeline_ === -1) {
       return 0;
@@ -665,7 +668,26 @@ export default class SegmentLoader extends videojs.EventTarget {
 
     if (segmentIndexArray.length) {
       this.logger_('Filtered segmentIndexArray', segmentIndexArray);
-      return segmentIndexArray[Math.max(segmentIndexArray.length, 2) - 1].segmentIndex;
+
+      if (this.syncSegmentUseAlignment_ && this.mediaIndexBeforeResync_ !== null) {
+        this.logger_('Assuming segments across playlists are aligned to',
+          'make efficient guess about next sync segment based on previous index',
+          this.mediaIndexBeforeResync_);
+        // in this case we assume segment alignment and use an eventually stored
+        // mediaIndex value from the previous playlist
+        return this.mediaIndexBeforeResync_;
+      } else if (this.syncSegmentUseInfiniteWindow_) {
+        this.logger_('Assuming infinte DVR window for sync segment candidate');
+        // in this case will choose the second (or only) segment of the playlist (from the start)
+        // this assumes that the DVR live window is infinite and that we can actually fetch
+        // this early segment
+        return segmentIndexArray[Math.min(segmentIndexArray.length - 1, 1)].segmentIndex;
+      } else {
+        this.logger_('Using last segment for sync segment candidate');
+        // in this case we will choose the very last (or only) segment of the playlist (at the end)
+        // relies on safe assumption that the latest segment will definitely be available
+        return segmentIndexArray[segmentIndexArray.length - 1].segmentIndex;
+      }
     }
 
     return Math.max(playlist.segments.length - 1, 0);
