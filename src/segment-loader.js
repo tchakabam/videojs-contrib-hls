@@ -676,13 +676,14 @@ export default class SegmentLoader extends videojs.EventTarget {
         // in this case we assume segment alignment and use an eventually stored
         // mediaIndex value from the previous playlist
         return this.mediaIndexBeforeResync_;
-      } else if (this.syncSegmentUseInfiniteWindow_) {
+      } else if (this.syncSegmentUseInfiniteWindow_) { // also this will only be done if using alignment is disabled
+                                                       // or if the mediaIndexBeforeResync was not set 
         this.logger_('Assuming infinte DVR window for sync segment candidate');
         // in this case will choose the second (or only) segment of the playlist (from the start)
         // this assumes that the DVR live window is infinite and that we can actually fetch
         // this early segment
         return segmentIndexArray[Math.min(segmentIndexArray.length - 1, 1)].segmentIndex;
-      } else {
+      } else { // default fallback
         this.logger_('Using last segment for sync segment candidate');
         // in this case we will choose the very last (or only) segment of the playlist (at the end)
         // relies on safe assumption that the latest segment will definitely be available
@@ -690,6 +691,9 @@ export default class SegmentLoader extends videojs.EventTarget {
       }
     }
 
+    // Using last segment here as well as general fallback
+    // when timeline filtering didn't give any valuable results
+    this.logger_('Did not find timeline mapped segments. Using last segment for sync segment candidate');
     return Math.max(playlist.segments.length - 1, 0);
   }
 
