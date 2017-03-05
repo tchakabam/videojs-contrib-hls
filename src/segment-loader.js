@@ -608,24 +608,24 @@ export default class SegmentLoader extends videojs.EventTarget {
     // fetch
     if (this.fetchAtBuffer_) {
       // Find the segment containing the end of the buffer
-      let mediaSourceInfo = getMediaInfoForTime(playlist,
+      let mediaPlaylistInfo = getMediaInfoForTime(playlist,
                                                 lastBufferedEnd,
                                                 syncPoint.segmentIndex,
                                                 syncPoint.time);
 
-      mediaIndex = mediaSourceInfo.mediaIndex;
-      startOfSegment = mediaSourceInfo.startTime;
+      mediaIndex = mediaPlaylistInfo.mediaIndex;
+      startOfSegment = mediaPlaylistInfo.startTime;
     } else {
       // Find the segment containing currentTime
-      let mediaSourceInfo = getMediaInfoForTime(playlist,
+      let mediaPlaylistInfo = getMediaInfoForTime(playlist,
                                                 currentTime,
                                                 syncPoint.segmentIndex,
                                                 syncPoint.time);
 
-      mediaIndex = mediaSourceInfo.mediaIndex;
-      startOfSegment = mediaSourceInfo.startTime;
+      mediaIndex = mediaPlaylistInfo.mediaIndex;
+      startOfSegment = mediaPlaylistInfo.startTime;
     }
-    this.logger_('getMediaIndexForTime',
+    this.logger_('getMediaInfoForTime',
       'mediaIndex:', mediaIndex,
       'startOfSegment:', startOfSegment);
 
