@@ -490,12 +490,32 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.fillBuffer_();
     }
 
+    this.checkForQualitySwitch_();
+
     if (this.checkBufferTimeout_) {
       window.clearTimeout(this.checkBufferTimeout_);
     }
 
     this.checkBufferTimeout_ = window.setTimeout(this.monitorBufferTick_.bind(this),
                                                  CHECK_BUFFER_DELAY);
+  }
+
+  checkForQualitySwitch_() {
+    var currentTime = this.currentTime_();
+    this.qualitySwitchHistory_.forEach(function(qs) {
+      if (qs.played) {
+        return;
+      }
+      // give it the 15ms of real-time perception tolerance for the smoothness
+      // note: the subsequent event is ought to be triggered in order to allow
+      // rescaling of player UI accordingly!
+      if (qs.played = qs.scheduledAt <= currentTime + 0.015) {
+        this.logger_('qualityswitchplayed',
+          'scheduledAt', qs.scheduledAt,
+          'currentTime', currentTime);
+        this.hls_.trigger('qualityswitchplayed');
+      }
+    }, this);
   }
 
   /**
@@ -512,11 +532,13 @@ export default class SegmentLoader extends videojs.EventTarget {
       return;
     }
 
+    let currentTime = this.currentTime_();
+
     if (!this.syncPoint_) {
       this.syncPoint_ = this.syncController_.getSyncPoint(this.playlist_,
                                                           this.mediaSource_.duration,
                                                           this.currentTimeline_,
-                                                          this.currentTime_());
+                                                          currentTime);
     }
 
     // see if we need to begin loading immediately
@@ -524,11 +546,24 @@ export default class SegmentLoader extends videojs.EventTarget {
                                         this.playlist_,
                                         this.mediaIndex,
                                         this.hasPlayed_(),
-                                        this.currentTime_(),
+                                        currentTime,
                                         this.syncPoint_);
 
     if (!segmentInfo) {
       return;
+    }
+
+    let qualitySwitch = this.qualitySwitchesPending_.shift();
+    if (qualitySwitch) {
+      this.qualitySwitchHistory_.push({
+        date: Date.now(),
+        currentTime: currentTime,
+        scheduledAt: Infinity, // in principle we dont know yet so this acts a placeholder
+        qualitySwitch,
+        buffered: false,
+        played: false,
+      });
+      this.hls_.trigger('qualityswitchprepared');
     }
 
     let isEndOfStream = detectEndOfStream(this.playlist_,
@@ -656,20 +691,6 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.logger_('getMediaInfoForTime',
       'mediaIndex:', mediaIndex,
       'startOfSegment:', startOfSegment);
-
-    let qualitySwitch = this.qualitySwitchesPending_.shift();
-    if (qualitySwitch) {
-      this.qualitySwitchHistory_.push({
-        date: Date.now(),
-        currentTime: currentTime,
-        lastBufferedEnd: lastBufferedEnd,
-        mediaIndex: mediaIndex,
-        startOfSegment: startOfSegment,
-        qualitySwitch: qualitySwitch,
-        buffered: false
-      });
-      this.hls_.trigger('qualityswitchprepared');
-    }
 
     return this.generateSegmentInfo_(playlist, mediaIndex, startOfSegment, false);
   }
@@ -1113,8 +1134,9 @@ export default class SegmentLoader extends videojs.EventTarget {
     // if we appended the segment to the buffer at the switch point
     this.qualitySwitchHistory_.forEach((qs) => {
       if (qs.buffered) return;
-      if (qs.buffered = qs.currentTime > segmentInfo.startOfSegment
-                    && qs.currentTime < segmentInfo.segment.end) {
+      let start = segmentInfo.segment.start;
+      if (qs.buffered = qs.currentTime <= start) {
+        qs.scheduledAt = start;
         this.logger_('buffered quality switch: ', qs);
         this.hls_.trigger('qualityswitchbuffered');
       }
