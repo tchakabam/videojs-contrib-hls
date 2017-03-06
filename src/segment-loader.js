@@ -606,7 +606,7 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @param {Number} mediaIndex - the previous mediaIndex fetched or null
    * @param {Boolean} hasPlayed - a flag indicating whether we have played or not
    * @param {Number} currentTime - the playback position in seconds
-   * @param {Object} syncPoint - a segment info object that describes the
+   * @param {Object} syncPoint - a segment info object that describes the sync-point
    * @returns {Object} a segment request object that describes the segment to load
    */
   checkBuffer_(buffered, playlist, mediaIndex, hasPlayed, currentTime, syncPoint) {
