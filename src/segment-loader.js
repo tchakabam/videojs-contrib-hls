@@ -121,8 +121,11 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.mediaSource_ = settings.mediaSource;
     this.hls_ = settings.hls;
     this.loaderType_ = settings.loaderType;
+    this.syncSegmentUseInfiniteWindow_ = settings.syncSegmentUseInfiniteWindow;
+    this.syncSegmentUseAlignment_ = settings.syncSegmentUseAlignment;
 
     // private instance variables
+    this.mediaIndexBeforeResync_ = null;
     this.checkBufferTimeout_ = null;
     this.error_ = void 0;
     this.currentTimeline_ = -1;
@@ -336,6 +339,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     // equal to the last appended mediaIndex
     if (this.mediaIndex !== null) {
       this.mediaIndex -= mediaSequenceDiff;
+      this.logger_('mediaIndex update to', this.mediaIndex);
     }
 
     // update the mediaIndex on the SegmentInfo object
@@ -423,6 +427,7 @@ export default class SegmentLoader extends videojs.EventTarget {
    * before returning to the simple walk-forward method
    */
   resyncLoader() {
+    this.mediaIndexBeforeResync_ = this.mediaIndex;
     this.mediaIndex = null;
     this.syncPoint_ = null;
   }
@@ -642,10 +647,17 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @returns {Number} An index of a segment from the playlist to load
    */
   getSyncSegmentCandidate_(playlist) {
+
+    this.logger_('getSyncSegmentCandidate_',
+      'currentTimeline_', this.currentTimeline_,
+      'mediaIndexBeforeResync_', this.mediaIndexBeforeResync_);
+
     if (this.currentTimeline_ === -1) {
       return 0;
     }
 
+    // Filter out an array of segments that maps
+    // to our timeline
     let segmentIndexArray = playlist.segments
       .map((s, i) => {
         return {
@@ -655,9 +667,33 @@ export default class SegmentLoader extends videojs.EventTarget {
       }).filter(s => s.timeline === this.currentTimeline_);
 
     if (segmentIndexArray.length) {
-      return segmentIndexArray[Math.min(segmentIndexArray.length - 1, 1)].segmentIndex;
+      this.logger_('Filtered segmentIndexArray', segmentIndexArray);
+
+      if (this.syncSegmentUseAlignment_ && this.mediaIndexBeforeResync_ !== null) {
+        this.logger_('Assuming segments across playlists are aligned to',
+          'make efficient guess about next sync segment based on previous index',
+          this.mediaIndexBeforeResync_);
+        // in this case we assume segment alignment and use an eventually stored
+        // mediaIndex value from the previous playlist
+        return this.mediaIndexBeforeResync_;
+      } else if (this.syncSegmentUseInfiniteWindow_) { // also this will only be done if using alignment is disabled
+                                                       // or if the mediaIndexBeforeResync was not set 
+        this.logger_('Assuming infinte DVR window for sync segment candidate');
+        // in this case will choose the second (or only) segment of the playlist (from the start)
+        // this assumes that the DVR live window is infinite and that we can actually fetch
+        // this early segment
+        return segmentIndexArray[Math.min(segmentIndexArray.length - 1, 1)].segmentIndex;
+      } else { // default fallback
+        this.logger_('Using last segment for sync segment candidate');
+        // in this case we will choose the very last (or only) segment of the playlist (at the end)
+        // relies on safe assumption that the latest segment will definitely be available
+        return segmentIndexArray[segmentIndexArray.length - 1].segmentIndex;
+      }
     }
 
+    // Using last segment here as well as general fallback
+    // when timeline filtering didn't give any valuable results
+    this.logger_('Did not find timeline mapped segments. Using last segment for sync segment candidate');
     return Math.max(playlist.segments.length - 1, 0);
   }
 
