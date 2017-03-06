@@ -705,6 +705,14 @@ export class MasterPlaylistController extends videojs.EventTarget {
   }
 
   /**
+   * Wraps SegmentLoader.qualitySwitchHistory for mainSegmentLoader
+   * @returns {Array} Main quality switch history
+   */
+  qualitySwitchHistory() {
+    return this.mainSegmentLoader_.qualitySwitchHistory();
+  }
+
+  /**
    * Begin playback.
    */
   play() {
