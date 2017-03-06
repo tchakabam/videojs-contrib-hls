@@ -334,14 +334,7 @@ export default class SegmentLoader extends videojs.EventTarget {
 
     if (!oldPlaylist || oldPlaylist.uri !== newPlaylist.uri) {
 
-      // first playlist or playlist with new quality attributes (not assumable only by URI diff)
-      // enqueue quality switch as pending!
-      if (this.hasPlayed_()
-        && (!oldPlaylist || qualitiesDiffer(oldPlaylist.attributes, newPlaylist.attributes))) {
-        this.qualitySwitchesPending_.push(newPlaylist.attributes);
-        this.logger_('quality switch pending', newPlaylist.attributes);
-        this.hls_.trigger('qualityswitchpending');
-      }
+      this.checkForQualitySwitchEvent_(oldPlaylist, newPlaylist);
 
       if (this.mediaIndex !== null) {
         // we must "resync" the segment loader when we switch renditions and
@@ -490,7 +483,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.fillBuffer_();
     }
 
-    this.checkForQualitySwitch_();
+    this.checkForQualitySwitchPlayed_();
 
     if (this.checkBufferTimeout_) {
       window.clearTimeout(this.checkBufferTimeout_);
@@ -500,7 +493,7 @@ export default class SegmentLoader extends videojs.EventTarget {
                                                  CHECK_BUFFER_DELAY);
   }
 
-  checkForQualitySwitch_() {
+  checkForQualitySwitchPlayed_() {
     var currentTime = this.currentTime_();
     this.qualitySwitchHistory_.forEach(function(qs) {
       if (qs.played) {
@@ -513,9 +506,52 @@ export default class SegmentLoader extends videojs.EventTarget {
         this.logger_('qualityswitchplayed',
           'scheduledAt', qs.scheduledAt,
           'currentTime', currentTime);
-        this.hls_.trigger('qualityswitchplayed');
+        this.hls_.trigger('qualityswitchplayed', {
+          scheduledAt: qs.scheduledAt,
+          currentTime: currentTime
+        });
       }
     }, this);
+  }
+
+  updateQualitySwitchHistory_(segment) {
+    this.qualitySwitchHistory_.forEach((qs) => {
+      if (qs.buffered) return;
+      let start = segment.start;
+      if (qs.buffered = qs.currentTime <= start) {
+        qs.scheduledAt = start;
+        this.logger_('buffered quality switch: ', qs);
+        this.hls_.trigger('qualityswitchbuffered', qs);
+      }
+    }, this);
+  }
+
+  detectQualitySwitchesPending_(currentTime) {
+    let qualitySwitch = this.qualitySwitchesPending_.shift();
+    if (qualitySwitch) {
+      let qualitySwitchHistoryItem = {
+        date: Date.now(),
+        currentTime: currentTime,
+        scheduledAt: Infinity, // in principle we dont know yet so this acts a placeholder
+        qualitySwitch,
+        buffered: false,
+        played: false,
+      };
+      this.qualitySwitchHistory_.push(qualitySwitchHistoryItem);
+      this.hls_.trigger('qualityswitchprepared', qualitySwitchHistoryItem);
+    }
+  }
+
+  checkForQualitySwitchEvent_(oldPlaylist, newPlaylist) {
+    // first playlist or playlist with new quality attributes (not assumable only by URI diff)
+    // enqueue quality switch as pending!
+    if (this.hasPlayed_()
+      && (!oldPlaylist || qualitiesDiffer(oldPlaylist.attributes, newPlaylist.attributes))) {
+      let quality = newPlaylist.attributes;
+      this.qualitySwitchesPending_.push(quality);
+      this.logger_('quality switch pending', quality);
+      this.hls_.trigger('qualityswitchpending', quality);
+    }
   }
 
   /**
@@ -553,18 +589,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       return;
     }
 
-    let qualitySwitch = this.qualitySwitchesPending_.shift();
-    if (qualitySwitch) {
-      this.qualitySwitchHistory_.push({
-        date: Date.now(),
-        currentTime: currentTime,
-        scheduledAt: Infinity, // in principle we dont know yet so this acts a placeholder
-        qualitySwitch,
-        buffered: false,
-        played: false,
-      });
-      this.hls_.trigger('qualityswitchprepared');
-    }
+    this.detectQualitySwitchesPending_(currentTime);
 
     let isEndOfStream = detectEndOfStream(this.playlist_,
                                           this.mediaSource_,
@@ -1132,15 +1157,7 @@ export default class SegmentLoader extends videojs.EventTarget {
 
     // first lets update eventually the switch history
     // if we appended the segment to the buffer at the switch point
-    this.qualitySwitchHistory_.forEach((qs) => {
-      if (qs.buffered) return;
-      let start = segmentInfo.segment.start;
-      if (qs.buffered = qs.currentTime <= start) {
-        qs.scheduledAt = start;
-        this.logger_('buffered quality switch: ', qs);
-        this.hls_.trigger('qualityswitchbuffered');
-      }
-    }, this);
+    this.updateQualitySwitchHistory_(segment);
 
     this.pendingSegment_ = null;
     this.recordThroughput_(segmentInfo);
