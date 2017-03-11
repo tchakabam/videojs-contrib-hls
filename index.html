@@ -30,13 +30,13 @@
     <p>Due to security restrictions in Flash, you will have to load this page over HTTP(S) to see the example in action.</p>
   </div>
   <video id="videojs-contrib-hls-player" class="video-js vjs-default-skin" controls>
-    <source src="https://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/bipbop_16x9_variant.m3u8" type="application/x-mpegURL">
+    <source src="" type="application/x-mpegURL">
   </video>
 
   <form id=load-url>
     <label>
       Video URL:
-      <input id=url type=url value="https://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/bipbop_16x9_variant.m3u8">
+      <input id=url type=url value="https://ingest2.genf2017.compuccino.tv/vod/smil:genf2017vod.smil/playlist.m3u8">
     </label>
     <button type=submit>Load</button>
   </form>
@@ -50,20 +50,53 @@
   <script src="/dist/videojs-contrib-hls.js"></script>
   <script>
     (function(window, videojs) {
+
+      var url = document.querySelector('#url').value;
+      document.querySelector('video source').src = url;
+
+      videojs.options.hls.debug = true;
+
       var player = window.player = videojs('videojs-contrib-hls-player');
+
+      player.on('mediachange', function(e, data) {
+        console.log('mediachange', data);
+      }); 
+
+      player.on('loadstart', function() {
+        console.log('starting HLS client');
+        var hls = window.hls = player.tech_.hls;
+
+        hls.on('qualityswitchpending', function(e, data) {
+          console.log('qualityswitchpending', data);
+        });
+        hls.on('qualityswitchbuffered', function(e, data) {
+          console.log('qualityswitchbuffered', data);
+        });
+      });
 
       // hook up the video switcher
       var loadUrl = document.getElementById('load-url');
-      var url = document.getElementById('url');
       loadUrl.addEventListener('submit', function(event) {
         event.preventDefault();
         player.src({
-          src: url.value,
+          src: url,
           type: 'application/x-mpegURL'
         });
         return false;
       });
+
     }(window, window.videojs));
+
+    function setQuality(pixelHeight) {
+      window.player.tech_.hls.representations().forEach(function(rep) {
+        if(rep.height === pixelHeight){
+          rep.enabled(true);
+        } else {
+          rep.enabled(false);
+        }
+      });
+    }
+
   </script>
 </body>
 </html>
