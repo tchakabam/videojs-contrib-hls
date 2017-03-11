@@ -137,6 +137,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.loaderType_ = settings.loaderType;
     this.syncSegmentUseInfiniteWindow_ = settings.syncSegmentUseInfiniteWindow;
     this.syncSegmentUseAlignment_ = settings.syncSegmentUseAlignment;
+    this.goalBufferLength_ = settings.goalBufferLength || Config.GOAL_BUFFER_LENGTH;
 
     // private instance variables
     this.mediaIndexBeforeResync_ = null;
@@ -655,7 +656,7 @@ export default class SegmentLoader extends videojs.EventTarget {
 
     // if there is plenty of content buffered, and the video has
     // been played before relax for awhile
-    if (bufferedTime >= Config.GOAL_BUFFER_LENGTH) {
+    if (bufferedTime >= this.goalBufferLength_) {
       return null;
     }
 
