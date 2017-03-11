@@ -307,7 +307,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       return;
     }
 
-    this.logger_('loading new playlist: ', newPlaylist.uri);
+    this.logger_('loading new playlist: ', newPlaylist.uri, newPlaylist);
 
     let oldPlaylist = this.playlist_;
     let segmentInfo = this.pendingSegment_;
@@ -830,6 +830,12 @@ export default class SegmentLoader extends videojs.EventTarget {
     let initSegmentXhr;
     let segmentXhr;
     let removeToTime = 0;
+
+    console.log('loading segment',
+      '@time', segmentInfo.startOfSegment,
+      '@bandwidth', segmentInfo.playlist.attributes['BANDWIDTH'],
+      '@height', segmentInfo.playlist.attributes['RESOLUTION'].height,
+      segmentInfo);
 
     removeToTime = this.trimBuffer_(segmentInfo);
 
