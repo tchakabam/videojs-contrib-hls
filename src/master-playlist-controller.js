@@ -704,6 +704,18 @@ export class MasterPlaylistController extends videojs.EventTarget {
     }
   }
 
+ smoothQualityChange_() {
+
+    let media = this.selectPlaylist();
+
+    if (media !== this.masterPlaylistLoader_.media()) {
+      console.log('Smooth quality switch!');
+      this.masterPlaylistLoader_.media(media);
+      console.log(media);
+    }
+  }
+
+
   /**
    * Wraps SegmentLoader.qualitySwitchHistory for mainSegmentLoader
    * @returns {Array} Main quality switch history

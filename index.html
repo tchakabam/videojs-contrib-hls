@@ -51,6 +51,7 @@
   <script>
     (function(window, videojs) {
 
+      videojs.options.hls.smoothQualitySwitch = true
       var url = document.querySelector('#url').value;
       document.querySelector('video source').src = url;
 

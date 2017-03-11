@@ -49,6 +49,12 @@ class Representation {
                               .masterPlaylistController_
                               .fastQualityChange_
                               .bind(hlsHandler.masterPlaylistController_);
+    let smoothChangeFunction = hlsHandler
+                              .masterPlaylistController_
+                              .smoothQualityChange_
+                              .bind(hlsHandler.masterPlaylistController_);
+    // Select transition function for quality switch
+    let changeFunc = hlsHandler.options_.smoothQualitySwitch ? smoothChangeFunction : fastChangeFunction; 
 
     // Carefully descend into the playlist's attributes since most
     // properties are optional
@@ -74,7 +80,7 @@ class Representation {
     this.enabled = enableFunction.bind(this,
                                        hlsHandler.playlists,
                                        playlist.uri,
-                                       fastChangeFunction);
+                                       changeFunc);
   }
 }
 
