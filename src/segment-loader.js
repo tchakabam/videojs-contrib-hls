@@ -815,7 +815,11 @@ export default class SegmentLoader extends videojs.EventTarget {
       // The expected duration of the segment in seconds
       duration: segment.duration,
       // retain the segment in case the playlist updates while doing an async process
-      segment
+      segment,
+      // downloaded bytes
+      loaded: 0,
+      // total bytes
+      total: 0
     };
   }
 
@@ -877,6 +881,9 @@ export default class SegmentLoader extends videojs.EventTarget {
 
     segmentXhr = this.hls_.xhr(segmentRequestOptions, this.handleResponse_.bind(this));
     segmentXhr.addEventListener('progress', (event) => {
+      var {loaded, total} = event;
+      this.pendingSegment_.loaded = Math.round(loaded);
+      this.pendingSegment_.total = Math.round(total);
       this.trigger(event);
     });
 
@@ -907,6 +914,10 @@ export default class SegmentLoader extends videojs.EventTarget {
     };
 
     this.state = 'WAITING';
+  }
+
+  pendingSegment() {
+    return this.pendingSegment_;
   }
 
   /**

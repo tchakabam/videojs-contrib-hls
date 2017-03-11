@@ -564,6 +564,10 @@ class HlsHandler extends Component {
       this.masterPlaylistController_.mediaSource));
   }
 
+  pendingSegmentInfo() {
+    return this.masterPlaylistController_.mainSegmentLoader_.pendingSegment();
+  }
+
   /**
    * Initializes the quality levels and sets listeners to update them.
    *
