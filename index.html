@@ -33,6 +33,12 @@
     <source src="" type="application/x-mpegURL">
   </video>
 
+  <p>
+    Buffering in progress:
+    <progress value="0" max="100"></progress>
+    <br>Time: <span id=current-time></span>
+  </p>
+
   <form id=load-url>
     <label>
       Video URL:
@@ -51,17 +57,24 @@
   <script>
     (function(window, videojs) {
 
+      // global settings
+      videojs.options.hls.debug = true;
       videojs.options.hls.smoothQualitySwitch = true
+      videojs.options.hls.goalBufferLength = 600;
+      //videojs.Hls.GOAL_BUFFER_LENGTH = 600;
+
+      var time = document.querySelector('#current-time');
+      var progress = document.querySelector('progress');
       var url = document.querySelector('#url').value;
       document.querySelector('video source').src = url;
 
-      videojs.options.hls.debug = true;
-
+      // create player
       var player = window.player = videojs('videojs-contrib-hls-player');
-
       player.on('mediachange', function(e, data) {
         console.log('mediachange', data);
-      }); 
+      });
+
+      time.innerHTML = player.currentTime();
 
       player.on('loadstart', function() {
         console.log('starting HLS client');
@@ -75,7 +88,21 @@
         });
       });
 
-      // hook up the video switcher
+      player.on('progress', function(e) {
+        if (hls.pendingSegmentInfo()) {
+          var progressInfo = {
+            loaded: hls.pendingSegmentInfo().loaded,
+            total: hls.pendingSegmentInfo().total
+          };
+          progress.value = progressInfo.loaded;
+          progress.max = progressInfo.total;
+        }
+      });
+
+      player.on('timeupdate', function() {
+        time.innerHTML = player.currentTime();
+      })
+
       var loadUrl = document.getElementById('load-url');
       loadUrl.addEventListener('submit', function(event) {
         event.preventDefault();
