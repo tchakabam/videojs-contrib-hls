@@ -836,7 +836,8 @@ export default class SegmentLoader extends videojs.EventTarget {
     let removeToTime = 0;
 
     console.log('loading segment',
-      '@time', segmentInfo.startOfSegment,
+      '@currentTime', this.currentTime_(),
+      '@mediaTime', segmentInfo.startOfSegment,
       '@bandwidth', segmentInfo.playlist.attributes['BANDWIDTH'],
       '@height', segmentInfo.playlist.attributes['RESOLUTION'].height,
       segmentInfo);
