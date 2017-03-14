@@ -8,6 +8,10 @@ import Config from './config';
 import window from 'global/window';
 import { createTransferableMessage } from './bin-utils';
 
+let segmentCacheBytesRead = 0;
+let segmentCacheBytesWritten = 0;
+const segmentCache = new Map();
+
 // in ms
 const CHECK_BUFFER_DELAY = 500;
 
@@ -873,21 +877,33 @@ export default class SegmentLoader extends videojs.EventTarget {
       initSegmentXhr = this.hls_.xhr(initSegmentOptions,
                                      this.handleResponse_.bind(this));
     }
+
     this.pendingSegment_ = segmentInfo;
 
-    let segmentRequestOptions = videojs.mergeOptions(this.xhrOptions_, {
-      uri: segmentInfo.uri,
-      responseType: 'arraybuffer',
-      headers: segmentXhrHeaders(segment)
-    });
-
-    segmentXhr = this.hls_.xhr(segmentRequestOptions, this.handleResponse_.bind(this));
-    segmentXhr.addEventListener('progress', (event) => {
-      var {loaded, total} = event;
-      this.pendingSegment_.loaded = Math.round(loaded);
-      this.pendingSegment_.total = Math.round(total);
-      this.trigger(event);
-    });
+    let cacheGet = segmentCache.get(segmentInfo.uri);
+    if (cacheGet !== undefined) {
+      segmentCacheBytesRead += cacheGet.byteLength;
+      this.logger_('found segment bytes in cache for:', segmentInfo.uri);
+      segmentInfo.startOfAppend = Date.now();
+      // we need to get a copy from the arraybuffer
+      // as we give up ownership to it when setting it as segment bytes
+      // it may become neutered by going through a worker and thus
+      // we could not us it a second time!!
+      segmentInfo.bytes = new Uint8Array(cacheGet.slice(0));
+    } else {
+      let segmentRequestOptions = videojs.mergeOptions(this.xhrOptions_, {
+        uri: segmentInfo.uri,
+        responseType: 'arraybuffer',
+        headers: segmentXhrHeaders(segment)
+      });
+      segmentXhr = this.hls_.xhr(segmentRequestOptions, this.handleResponse_.bind(this));
+      segmentXhr.addEventListener('progress', (event) => {
+        var {loaded, total} = event;
+        this.pendingSegment_.loaded = Math.round(loaded);
+        this.pendingSegment_.total = Math.round(total);
+        this.trigger(event);
+      });
+    }
 
     this.xhr_ = {
       keyXhr,
@@ -916,6 +932,10 @@ export default class SegmentLoader extends videojs.EventTarget {
     };
 
     this.state = 'WAITING';
+
+    if (cacheGet) {
+      this.processResponse_();
+    }
   }
 
   pendingSegment() {
@@ -1024,6 +1044,15 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.mediaBytesTransferred += request.bytesReceived || 0;
       this.mediaRequests += 1;
       this.mediaTransferDuration += request.roundTripTime || 0;
+
+      // add segment bytes to cache
+      this.logger_('caching', request.response.byteLength, 'bytes from request response');
+      // we need to set a copy from the arraybuffer
+      // as we give up ownership to it when setting it as segment bytes
+      // it may become neutered by going through a worker and thus
+      // we could not us it a second time!!
+      segmentCache.set(request.url, request.response.slice(0));
+      segmentCacheBytesWritten += request.response.byteLength;
 
       if (segment.key) {
         segmentInfo.encryptedBytes = new Uint8Array(request.response);
@@ -1298,5 +1327,14 @@ export default class SegmentLoader extends videojs.EventTarget {
    */
   qualitySwitchHistory() {
     return this.qualitySwitchHistory_.slice();
+  }
+
+  static cacheInstance() {
+    return {
+      map: segmentCache,
+      reset: segmentCache.clear.bind(segmentCache),
+      bytesWritten: segmentCacheBytesWritten,
+      bytesRead: segmentCacheBytesRead
+    }
   }
 }
