@@ -6,6 +6,7 @@
  */
 import document from 'global/document';
 import PlaylistLoader from './playlist-loader';
+import SegmentLoader from './segment-loader';
 import Playlist from './playlist';
 import xhrFactory from './xhr';
 import {Decrypter, AsyncStream, decrypt} from 'aes-decrypter';
@@ -21,6 +22,7 @@ import PlaybackWatcher from './playback-watcher';
 import reloadSourceOnError from './reload-source-on-error';
 
 const Hls = {
+  SegmentLoader,
   PlaylistLoader,
   Playlist,
   Decrypter,
