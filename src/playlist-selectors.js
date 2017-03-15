@@ -229,6 +229,7 @@ const SMOOTHING_ALPHA = 0.2;
 const WINDOW_SIZE = 6;
 const BANDWIDTH_MARGIN = 1.2;
 const SAFE_FALLBACK_INDEX = false;
+const FALLBACK_INDEX_DIVISOR = 3;
 
 const selectPlaylistSimple = function() {
 
@@ -301,7 +302,7 @@ const selectPlaylistSimple = function() {
     return elem.attributes.BANDWIDTH === bandwidthPlaylists[bandwidthPlaylists.length - 1].attributes.BANDWIDTH;
   })[0];
 
-  fallbackIndex = safeFallbackIndex ? 0 : (Math.ceil(sortedPlaylists.length / 3) - 1);
+  fallbackIndex = safeFallbackIndex ? 0 : (Math.ceil(sortedPlaylists.length / FALLBACK_INDEX_DIVISOR) - 1);
 
   // fallback chain of variants
   selected = bandwidthBestVariant || sortedPlaylists[fallbackIndex];
