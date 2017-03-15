@@ -12,8 +12,10 @@ let segmentCacheBytesRead = 0;
 let segmentCacheBytesWritten = 0;
 const segmentCache = new Map();
 
-// in seconds
-const BACK_BUFFER_TRIM_TIME = 30;
+// should be < 1 -> otherwise we'll remove from current playhead
+const BACK_BUFFER_TO_PRE_BUFFER_RATIO = 0.5; // fixme: when resulting backbuffer lower than segment duration might cause issues!
+// in seconds, should always be less than SourceBuffer max capacity
+const BACK_BUFFER_TRIM_TIME = SourceUpdater.MAX_BUFFERED_SECONDS * BACK_BUFFER_TO_PRE_BUFFER_RATIO; 
 
 // in ms
 const CHECK_BUFFER_DELAY = 500;

@@ -19,6 +19,10 @@ const MAX_BUFFERED_SECONDS = 60; // for an 8mbit stream (eg. well encoded full H
  * SourceBuffer
  */
 export default class SourceUpdater {
+  static get MAX_BUFFERED_SECONDS() {
+    return MAX_BUFFERED_SECONDS;
+  }
+
   constructor(mediaSource, mimeType) {
     let createSourceBuffer = () => {
       this.sourceBuffer_ = mediaSource.addSourceBuffer(mimeType);
