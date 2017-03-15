@@ -173,11 +173,8 @@ export default class SourceUpdater {
     }
 
     let totalBufferedTime = this.totalBufferedTime();
-    console.log('total buffered time:', totalBufferedTime);
 
     if (totalBufferedTime > MAX_BUFFERED_SECONDS) {
-      console.log('currently buffered time exceeding limit, waiting to append in queue ...')
-
       callbacks = this.callbacks_[this.callbacks_.length - 1];
       // run callback-callback ;) indicate we're done to outer world
       let pendingCallback = callbacks[1];
@@ -200,7 +197,7 @@ export default class SourceUpdater {
       if (callbacks !== undefined
         && this.sourceBuffer_   // but ... we could have removed it in previous "done" callback!
         && !this.sourceBuffer_.updating) {
-        console.warn('unjaming SourceBuffer task queue to allow re-appending flow by prioritizing removals');
+        console.warn('unjaming SourceBuffer task queue by prioritizing removals');
         this.pendingCallback_ = callbacks[1];
         callbacks[0]();
       }

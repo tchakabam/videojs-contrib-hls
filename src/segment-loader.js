@@ -335,6 +335,8 @@ export default class SegmentLoader extends videojs.EventTarget {
       };
     }
 
+    this.logger_('mediaIndex:', this.mediaIndex);
+
     // in VOD, this is always a rendition switch (or we updated our syncInfo above)
     // in LIVE, we always want to update with new playlists (including refreshes)
     this.trigger('syncinfoupdate');

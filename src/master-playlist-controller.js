@@ -421,7 +421,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
       // figure out what stream the next segment should be downloaded from
       // with the updated bandwidth information
       this.masterPlaylistLoader_.media(this.selectPlaylist());
-
       this.trigger('progress');
     });
 
@@ -692,6 +691,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
    * @private
    */
   fastQualityChange_() {
+
+    videojs.log.warn('Fast quality switch!');
+
     let media = this.selectPlaylist();
 
     if (media !== this.masterPlaylistLoader_.media()) {
@@ -709,9 +711,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
     let media = this.selectPlaylist();
 
     if (media !== this.masterPlaylistLoader_.media()) {
-      console.log('Smooth quality switch!');
       this.masterPlaylistLoader_.media(media);
-      console.log(media);
     }
   }
 
