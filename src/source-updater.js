@@ -179,6 +179,9 @@ export default class SourceUpdater {
     let totalBufferedTime = this.totalBufferedTime();
 
     if (totalBufferedTime > MAX_BUFFERED_SECONDS) {
+
+      console.warn('SourceBuffer size exceeds max');
+
       callbacks = this.callbacks_[this.callbacks_.length - 1];
       // run callback-callback ;) indicate we're done to outer world
       let pendingCallback = callbacks[1];
