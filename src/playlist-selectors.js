@@ -223,6 +223,10 @@ const filterMovingAvg = function(signal, windowSize, delay = 0, extractor = (e) 
 };
 */
 
+const SMOOTHING_ALPHA = 0.2;
+const WINDOW_SIZE = 6;
+const BANDWIDTH_MARGIN = 1.2
+
 const selectPlaylistSimple = function() {
 
   console.log('SIMPLE_PLAYLIST_SELECTOR');
@@ -233,10 +237,12 @@ const selectPlaylistSimple = function() {
   let systemBandwidth = this.systemBandwidth;
   let estimatedBandwidth = systemBandwidth;
 
+  let params = videojs.options.hls.abr || {};
+
   // parameters
-  let smoothingAlpha = 0.2;
-  let flatAvgTaps = 6;
-  let bandwidthVariance = 1.2;
+  let smoothingAlpha = params.smoothingAlpha || SMOOTHING_ALPHA;
+  let flatAvgTaps = params.windowSize || WINDOW_SIZE;
+  let bandwidthVariance = params.bandwidthMargin || BANDWIDTH_MARGIN;
 
   console.log('SYSTEM BW:', this.systemBandwidth, 'bits/s');
 
@@ -258,15 +264,17 @@ const selectPlaylistSimple = function() {
   console.log('FLAG AVG BUFFER LEVEL:', flatAvgBufferLevel);
 
   let projectedBw = Math.round(
-      (1/bandwidthVariance) * (1 - rttToBufferLevelRatio) * expSmoothBw
+      (1/bandwidthVariance) * (1 - rttToBufferLevelRatio) * flatAvgBw
     + (1 - 1/bandwidthVariance) * flatAvgBw
   );
 
   console.log('RTT-TO-BUFFER-PROJECTED BW:', projectedBw / 1e6, 'Mbits/s');
 
-  estimatedBandwidth = Math.round((2/5)*expSmoothBw + (1/5)*projectedBw + (2/5)*flatAvgBw);
+  estimatedBandwidth = Math.round((1/5)*expSmoothBw + (1/5)*projectedBw + (3/5)*flatAvgBw);
 
   console.log('QUANIZATION ESTIMATED BANDWIDTH:', estimatedBandwidth / 1e6, 'Mbits/s');
+
+  console.log('MAX BITRATE USED:', estimatedBandwidth / bandwidthVariance);
 
   stableSort(sortedPlaylists, comparePlaylistBandwidth);
 
