@@ -20,8 +20,10 @@ import renditionSelectionMixin from './rendition-mixin';
 import window from 'global/window';
 import PlaybackWatcher from './playback-watcher';
 import reloadSourceOnError from './reload-source-on-error';
+import PlaylistSelectors from './playlist-selectors';
 
 const Hls = {
+  PlaylistSelectors,
   SegmentLoader,
   PlaylistLoader,
   Playlist,

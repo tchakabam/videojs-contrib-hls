@@ -418,10 +418,13 @@ export class MasterPlaylistController extends videojs.EventTarget {
    */
   setupSegmentLoaderListeners_() {
     this.mainSegmentLoader_.on('progress', () => {
+      this.trigger('progress');
+    });
+
+    this.mainSegmentLoader_.on('abr-update', () => {
       // figure out what stream the next segment should be downloaded from
       // with the updated bandwidth information
       this.masterPlaylistLoader_.media(this.selectPlaylist());
-      this.trigger('progress');
     });
 
     this.mainSegmentLoader_.on('error', () => {

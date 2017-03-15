@@ -1015,6 +1015,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.bandwidth = 1;
       this.roundTrip = NaN;
       this.state = 'READY';
+      this.trigger('abr-update');
       return this.trigger('progress');
     }
 
@@ -1182,6 +1183,8 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.state = 'READY';
       return;
     }
+
+    this.trigger('abr-update');
 
     this.state = 'APPENDING';
 
