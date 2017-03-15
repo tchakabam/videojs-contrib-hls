@@ -702,7 +702,15 @@ export default class SegmentLoader extends videojs.EventTarget {
         startOfSegment = segment.end;
       } else {
         startOfSegment = lastBufferedEnd;
+        throw new Error('FIXME: need to check here if SourceUpdater has no pending appends in cue');
+        return null;
       }
+
+      bufferedTime = Math.max(0, startOfSegment - currentTime);
+      if (bufferedTime >= this.goalBufferLength_) {
+        return null;
+      }
+
       return this.generateSegmentInfo_(playlist, mediaIndex + 1, startOfSegment, false);
     }
 
