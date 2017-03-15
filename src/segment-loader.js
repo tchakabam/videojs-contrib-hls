@@ -965,11 +965,10 @@ export default class SegmentLoader extends videojs.EventTarget {
    *
    * @private
    *
-   * @param {Object} segmentInfo - the current segment
    * @returns {Number} removeToTime - the end point in time, in seconds
    * that the the buffer should be trimmed.
    */
-  trimBuffer_(segmentInfo) {
+  trimBuffer_() {
     let seekable = this.seekable_();
     let currentTime = this.currentTime_();
     let removeToTime;
