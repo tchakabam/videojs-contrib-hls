@@ -854,7 +854,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     let keyXhr;
     let initSegmentXhr;
     let segmentXhr;
-    let removeToTime = 0;
+    let removeToTime;
 
     this.logger_('loading segment',
       '@currentTime', this.currentTime_(),
@@ -863,11 +863,9 @@ export default class SegmentLoader extends videojs.EventTarget {
       '@height', segmentInfo.playlist.attributes['RESOLUTION'].height,
       segmentInfo);
 
-    removeToTime = this.trimBuffer_(segmentInfo);
-
-    if (removeToTime > 0) {
+    if (removeToTime = this.trimBuffer_(segmentInfo) > 0) {
       this.logger_('triming up to', removeToTime, 'from buffer');
-      this.sourceUpdater_.remove(0, removeToTime);
+      this.remove(0, removeToTime);
     }
 
     segment = segmentInfo.segment;
