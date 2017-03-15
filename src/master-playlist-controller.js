@@ -912,6 +912,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.audioSegmentLoader_.load();
       }
     }
+    return currentTime;
   }
 
   /**
