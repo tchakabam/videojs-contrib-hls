@@ -153,6 +153,10 @@ export default class SourceUpdater {
     return this.timestampOffset_;
   }
 
+  flush() {
+    this.callbacks_ = [];
+  }
+
   /**
    * que a callback to run
    */
