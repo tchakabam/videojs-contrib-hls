@@ -7,10 +7,7 @@ import SourceUpdater from './source-updater';
 import Config from './config';
 import window from 'global/window';
 import { createTransferableMessage } from './bin-utils';
-
-let segmentCacheBytesRead = 0;
-let segmentCacheBytesWritten = 0;
-const segmentCache = new Map();
+import {Cache as segmentCache} from './cache';
 
 // should be < 1 -> otherwise we'll remove from current playhead
 const BACK_BUFFER_TO_PRE_BUFFER_RATIO = 0.5; // fixme: when resulting backbuffer lower than segment duration might cause issues!
@@ -898,8 +895,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.pendingSegment_ = segmentInfo;
 
     let cacheGet = segmentCache.get(segmentInfo.uri);
-    if (cacheGet !== undefined) {
-      segmentCacheBytesRead += cacheGet.byteLength;
+    if (cacheGet) {
       this.logger_('found segment bytes in cache for:', segmentInfo.uri);
       segmentInfo.startOfAppend = Date.now();
       // we need to get a copy from the arraybuffer
@@ -1056,6 +1052,8 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.roundTrip = request.roundTripTime;
       this.bandwidth = request.bandwidth;
 
+      this.logger_('bandwidth:', this.bandwidth, 'rtt:', this.roundTrip);
+
       // update analytics stats
       this.mediaBytesTransferred += request.bytesReceived || 0;
       this.mediaRequests += 1;
@@ -1067,8 +1065,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       // as we give up ownership to it when setting it as segment bytes
       // it may become neutered by going through a worker and thus
       // we could not us it a second time!!
-      segmentCache.set(request.url, request.response.slice(0));
-      segmentCacheBytesWritten += request.response.byteLength;
+      segmentCache.put(request.url, request.response.slice(0));
 
       if (segment.key) {
         segmentInfo.encryptedBytes = new Uint8Array(request.response);
@@ -1343,14 +1340,5 @@ export default class SegmentLoader extends videojs.EventTarget {
    */
   qualitySwitchHistory() {
     return this.qualitySwitchHistory_.slice();
-  }
-
-  static cacheInstance() {
-    return {
-      map: segmentCache,
-      reset: segmentCache.clear.bind(segmentCache),
-      bytesWritten: segmentCacheBytesWritten,
-      bytesRead: segmentCacheBytesRead
-    }
   }
 }
