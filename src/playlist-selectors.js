@@ -237,6 +237,9 @@ const selectPlaylistSimple = function() {
   let bandwidthBestVariant;
   let systemBandwidth = this.systemBandwidth;
   let estimatedBandwidth = systemBandwidth;
+  let missingEstimate = false;
+  let fallbackIndex = 0;
+  let selected;
 
   let params = videojs.options.hls.abr || {};
 
@@ -246,42 +249,34 @@ const selectPlaylistSimple = function() {
   let bandwidthVariance = params.bandwidthMargin || BANDWIDTH_MARGIN;
   let safeFallbackIndex = params.safeFallbackIndex || SAFE_FALLBACK_INDEX;
 
-  console.log('SYSTEM BW:', this.systemBandwidth, 'bits/s');
-
+  // computations
   let expSmoothBw = Math.round(filterExpSmoothing(this.metricsHistory(), smoothingAlpha, (metric) => metric.bandwidth));
   let expSmoothRtt = Math.round(filterExpSmoothing(this.metricsHistory(), smoothingAlpha, (metric) => metric.roundTrip));
-
   let flatAvgBw = Math.round(filterFIRFlatLowpass(this.metricsHistory(), flatAvgTaps, (metric) => metric.bandwidth));
   let flatAvgBufferLevel = Math.floor(filterFIRFlatLowpass(this.metricsHistory(), flatAvgTaps, (metric) => metric.bufferedTime));
-
-  console.log('ESTIMATED BW EXP SMOOTHER:', expSmoothBw, 'bits/s, RTT:', expSmoothRtt, 'ms');
-  console.log('ESTIMATED BW FLAT AVG:', flatAvgBw, 'bits/s');
-
   let {bufferedTime, goalBufferLength} = this.metricsHistory().slice().pop() || {bufferedTime: 0, goalBufferLength: 0};
-
   let rttToBufferLevelRatio = expSmoothRtt / (1000*flatAvgBufferLevel);
-
-  console.log('BUFFER LEVEL:', bufferedTime, 'of goal:', goalBufferLength, 'RTT-to-buffer-level ratio:', rttToBufferLevelRatio);
-
-  console.log('FLAG AVG BUFFER LEVEL:', flatAvgBufferLevel);
-
   let projectedBw = Math.round(
       (1/bandwidthVariance) * (1 - rttToBufferLevelRatio) * flatAvgBw
     + (1 - 1/bandwidthVariance) * flatAvgBw
   );
-
-  console.log('RTT-TO-BUFFER-PROJECTED BW:', projectedBw / 1e6, 'Mbits/s');
-
   estimatedBandwidth = Math.round((1/5)*expSmoothBw + (1/5)*projectedBw + (3/5)*flatAvgBw);
-
-  let missingEstimate = false;
+  // missing estimators ?  (startup condition)
   if (isNaN(estimatedBandwidth)) {
     missingEstimate = true;
     estimatedBandwidth = 0;
   }
 
+  console.log('SYSTEM BW:', this.systemBandwidth, 'bits/s');
+  console.log('ESTIMATED BW EXP SMOOTHER:', expSmoothBw, 'bits/s, RTT:', expSmoothRtt, 'ms');
+  console.log('ESTIMATED BW FLAT AVG:', flatAvgBw, 'bits/s');
+  console.log('BUFFER LEVEL:', bufferedTime, 'of goal:', goalBufferLength, 'RTT-to-buffer-level ratio:', rttToBufferLevelRatio);
+  console.log('FLAG AVG BUFFER LEVEL:', flatAvgBufferLevel);
+  console.log('RTT-TO-BUFFER-PROJECTED BW:', projectedBw / 1e6, 'Mbits/s');
   console.log('QUANIZATION ESTIMATED BANDWIDTH:', estimatedBandwidth / 1e6, 'Mbits/s');
   console.log('MAX BITRATE USED:', estimatedBandwidth / bandwidthVariance);
+
+  // playlist selection ...
 
   stableSort(sortedPlaylists, comparePlaylistBandwidth);
 
@@ -304,12 +299,14 @@ const selectPlaylistSimple = function() {
     return elem.attributes.BANDWIDTH === bandwidthPlaylists[bandwidthPlaylists.length - 1].attributes.BANDWIDTH;
   })[0];
 
-  let fallbackIndex = safeFallbackIndex ? 0 : (Math.ceil(sortedPlaylists.length / 3) - 1);
-
-  console.log('SELECTED:', (bandwidthBestVariant || sortedPlaylists[fallbackIndex]).attributes.RESOLUTION.height);
+  fallbackIndex = safeFallbackIndex ? 0 : (Math.ceil(sortedPlaylists.length / 3) - 1);
 
   // fallback chain of variants
-  return bandwidthBestVariant || sortedPlaylists[fallbackIndex];
+  selected = bandwidthBestVariant || sortedPlaylists[fallbackIndex];
+
+  console.log('SELECTED:', selected.attributes.RESOLUTION.height);
+
+  return selected;
 };
 
 export default {
