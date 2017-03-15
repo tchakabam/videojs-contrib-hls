@@ -225,7 +225,8 @@ const filterMovingAvg = function(signal, windowSize, delay = 0, extractor = (e) 
 
 const SMOOTHING_ALPHA = 0.2;
 const WINDOW_SIZE = 6;
-const BANDWIDTH_MARGIN = 1.2
+const BANDWIDTH_MARGIN = 1.2;
+const SAFE_FALLBACK_INDEX = false;
 
 const selectPlaylistSimple = function() {
 
@@ -243,6 +244,7 @@ const selectPlaylistSimple = function() {
   let smoothingAlpha = params.smoothingAlpha || SMOOTHING_ALPHA;
   let flatAvgTaps = params.windowSize || WINDOW_SIZE;
   let bandwidthVariance = params.bandwidthMargin || BANDWIDTH_MARGIN;
+  let safeFallbackIndex = params.safeFallbackIndex || SAFE_FALLBACK_INDEX;
 
   console.log('SYSTEM BW:', this.systemBandwidth, 'bits/s');
 
@@ -272,8 +274,13 @@ const selectPlaylistSimple = function() {
 
   estimatedBandwidth = Math.round((1/5)*expSmoothBw + (1/5)*projectedBw + (3/5)*flatAvgBw);
 
-  console.log('QUANIZATION ESTIMATED BANDWIDTH:', estimatedBandwidth / 1e6, 'Mbits/s');
+  let missingEstimate = false;
+  if (isNaN(estimatedBandwidth)) {
+    missingEstimate = true;
+    estimatedBandwidth = 0;
+  }
 
+  console.log('QUANIZATION ESTIMATED BANDWIDTH:', estimatedBandwidth / 1e6, 'Mbits/s');
   console.log('MAX BITRATE USED:', estimatedBandwidth / bandwidthVariance);
 
   stableSort(sortedPlaylists, comparePlaylistBandwidth);
@@ -283,12 +290,12 @@ const selectPlaylistSimple = function() {
   sortedPlaylists = sortedPlaylists.filter(Playlist.isEnabled);
   // filter out any variant that has greater effective bitrate
   // than the current estimated bandwidth
-  bandwidthPlaylists = sortedPlaylists.filter(function(elem) {
+  bandwidthPlaylists = sortedPlaylists.filter(function(elem, index) {
     console.log('BANDWIDTH:', elem.attributes.BANDWIDTH, 
                 'RESOLUTION.height:', elem.attributes.RESOLUTION.height);
-    return elem.attributes &&
-           elem.attributes.BANDWIDTH &&
-           elem.attributes.BANDWIDTH * bandwidthVariance < estimatedBandwidth;
+    return (!missingEstimate && index === 0) ||
+           (elem.attributes && elem.attributes.BANDWIDTH &&
+            elem.attributes.BANDWIDTH * bandwidthVariance < estimatedBandwidth);
   });
 
   // get all of the renditions with the same (highest) bandwidth
@@ -297,11 +304,12 @@ const selectPlaylistSimple = function() {
     return elem.attributes.BANDWIDTH === bandwidthPlaylists[bandwidthPlaylists.length - 1].attributes.BANDWIDTH;
   })[0];
 
-  console.log('SELECTED:', (bandwidthBestVariant || sortedPlaylists[0]).attributes.RESOLUTION.height);
+  let fallbackIndex = safeFallbackIndex ? 0 : (Math.ceil(sortedPlaylists.length / 3) - 1);
+
+  console.log('SELECTED:', (bandwidthBestVariant || sortedPlaylists[fallbackIndex]).attributes.RESOLUTION.height);
 
   // fallback chain of variants
-  return bandwidthBestVariant ||
-    sortedPlaylists[0];
+  return bandwidthBestVariant || sortedPlaylists[fallbackIndex];
 };
 
 export default {
