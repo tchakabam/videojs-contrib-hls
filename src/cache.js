@@ -47,7 +47,7 @@ const cacheInstance = {
     }
     let totalSize = cacheInstance.countBytes();
     if (totalSize > MAX_CACHE_SIZE_BYTES) {
-      errorOnOverflow && (throw new Error('Cache exceeds max size, has', totalSize, 'bytes'));
+      if (cacheInstance.errorOnOverflow) throw new Error('Cache exceeds max size, has', totalSize, 'bytes');
       cacheInstance.purgeOldest();
     }
     return cacheInstance
