@@ -183,6 +183,34 @@ const selectPlaylistStandard = function() {
     sortedPlaylists[0];
 };
 
+const filterExpSmoothing = function(signal, alpha, extractor = (e) => e) {
+  let output = 0;
+  let outSignal = [];
+  signal.forEach((elem) => {
+    let value = extractor(elem);
+    // high alpha -> more smoothing
+    // zero alpha -> all pass
+    // full alpha -> zero pass low cut
+    output = (1 - alpha) * value + alpha * output;
+    outSignal.push(output);
+  });
+  return output;
+};
+
+/*
+const filterMovingAvg = function(signal, windowSize, delay = 0, extractor = (e) => {return e}) {
+  let output = 0;
+  signal.forEach((elem) => {
+    let value = extractor(elem);
+    // high alpha -> more smoothing
+    // zero alpha -> all pass
+    // full alpha -> zero pass low cut
+    output = (1 - alpha) * value + alpha * output;
+    outSignal.push(output);
+  });
+};
+*/
+
 const selectPlaylistSimple = function() {
 
   console.log('SIMPLE_PLAYLIST_SELECTOR');

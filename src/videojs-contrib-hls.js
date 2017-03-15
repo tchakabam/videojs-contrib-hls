@@ -602,6 +602,10 @@ class HlsHandler extends Component {
     return this.masterPlaylistController_.qualitySwitchHistory();
   }
 
+  metricsHistory() {
+    return this.masterPlaylistController_.mainSegmentLoader_.metricsHistory();
+  }
+
   /**
    * a helper for grabbing the active audio group from MasterPlaylistController
    *

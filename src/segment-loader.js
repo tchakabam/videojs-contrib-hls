@@ -157,6 +157,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.xhrOptions_ = null;
     this.qualitySwitchesPending_ = [];
     this.qualitySwitchHistory_ = [];
+    this.metricsHistory_ = [];
 
     // Fragmented mp4 playback
     this.activeInitSegmentId_ = null;
@@ -593,11 +594,9 @@ export default class SegmentLoader extends videojs.EventTarget {
     }
 
     // see if we need to begin loading immediately
-    let segmentInfo = this.checkBuffer_(this.sourceUpdater_.buffered(),
-                                        this.playlist_,
+    let segmentInfo = this.checkBuffer_(this.playlist_,
                                         this.mediaIndex,
                                         this.hasPlayed_(),
-                                        currentTime,
                                         this.syncPoint_);
 
     if (!segmentInfo) {
@@ -637,6 +636,17 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.loadSegment_(segmentInfo);
   }
 
+  bufferInfo() {
+    let buffered = this.sourceUpdater_.buffered();
+    let currentTime = this.currentTime_();
+    let lastBufferedEnd = 0;
+    if (buffered.length) {
+      lastBufferedEnd = buffered.end(buffered.length - 1);
+    }
+    let bufferedTime = Math.max(0, lastBufferedEnd - currentTime);
+    return {bufferedTime, lastBufferedEnd, currentTime}; 
+  }
+
   /**
    * Determines what segment request should be made, given current playback
    * state.
@@ -649,15 +659,9 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @param {Object} syncPoint - a segment info object that describes the sync-point
    * @returns {Object} a segment request object that describes the segment to load
    */
-  checkBuffer_(buffered, playlist, mediaIndex, hasPlayed, currentTime, syncPoint) {
-    let lastBufferedEnd = 0;
+  checkBuffer_(playlist, mediaIndex, hasPlayed, syncPoint) {
     let startOfSegment;
-
-    if (buffered.length) {
-      lastBufferedEnd = buffered.end(buffered.length - 1);
-    }
-
-    let bufferedTime = Math.max(0, lastBufferedEnd - currentTime);
+    let {lastBufferedEnd, bufferedTime, currentTime} = this.bufferInfo();
 
     if (!playlist.segments.length) {
       return null;
@@ -1050,10 +1054,13 @@ export default class SegmentLoader extends videojs.EventTarget {
       segmentInfo.startOfAppend = Date.now();
 
       // calculate the download bandwidth based on segment request
-      this.roundTrip = request.roundTripTime;
-      this.bandwidth = request.bandwidth;
+      let roundTrip = this.roundTrip = request.roundTripTime;
+      let bandwidth = this.bandwidth = request.bandwidth;
 
-      this.logger_('previous request bandwidth:', this.bandwidth, 'bits/s', 'rtt:', this.roundTrip, 'ms');
+      this.logger_('previous request bandwidth:', bandwidth, 'bits/s', 'rtt:', roundTrip, 'ms');
+
+      let {bufferedTime, currentTime, lastBufferedEnd} = this.bufferInfo();
+      this.addToMetricsHistory_({bandwidth, roundTrip, bufferedTime, currentTime, lastBufferedEnd});
 
       // update analytics stats
       this.mediaBytesTransferred += request.bytesReceived || 0;
@@ -1184,8 +1191,6 @@ export default class SegmentLoader extends videojs.EventTarget {
       return;
     }
 
-    this.trigger('abr-update');
-
     this.state = 'APPENDING';
 
     let segmentInfo = this.pendingSegment_;
@@ -1287,6 +1292,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     // Don't do a rendition switch unless the SegmentLoader is already walking forward
     if (isWalkingForward) {
       this.trigger('progress');
+      this.trigger('abr-update');
     }
 
     // any time an update finishes and the last segment is in the
@@ -1330,6 +1336,16 @@ export default class SegmentLoader extends videojs.EventTarget {
       (segmentProcessingThroughput - rate) / (++this.throughput.count);
   }
 
+  addToMetricsHistory_({bandwidth, roundTrip, bufferedTime, currentTime, lastBufferedEnd}) {
+    this.metricsHistory_.push({
+      bandwidth,
+      roundTrip,
+      bufferedTime,
+      currentTime,
+      lastBufferedEnd
+    });
+  }
+
   /**
    * A debugging logger noop that is set to console.log only if debugging
    * is enabled globally
@@ -1345,7 +1361,11 @@ export default class SegmentLoader extends videojs.EventTarget {
     return this.qualitySwitchHistory_.slice();
   }
 
+  metricsHistory() {
+    return this.metricsHistory_;
+  }
+
   static get Cache() {
     return segmentCache;
-  } 
+  }
 }
