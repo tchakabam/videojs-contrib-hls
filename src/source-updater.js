@@ -3,6 +3,9 @@
  */
 import videojs from 'video.js';
 
+const MAX_BUFFERED_SECONDS = 60; // for an 8mbit stream (eg. well encoded full HD quality)
+                                       // that would be about 60Mbytes
+
 /**
  * A queue of callbacks to be serialized and applied when a
  * MediaSource and its associated SourceBuffers are not in the
@@ -88,6 +91,15 @@ export default class SourceUpdater {
     return this.sourceBuffer_.buffered;
   }
 
+  totalBufferedTime() {
+    let bufferedTime = 0;
+    let buffered = this.buffered();
+    if (buffered.length) {
+      bufferedTime = buffered.end(buffered.length - 1) - buffered.start(buffered.length - 1);
+    }
+    return bufferedTime;
+  }
+
   /**
    * Queue an update to set the duration.
    *
@@ -110,7 +122,7 @@ export default class SourceUpdater {
   remove(start, end) {
     this.queueCallback_(() => {
       this.sourceBuffer_.remove(start, end);
-    });
+    }, null, true);
   }
 
   /**
@@ -140,8 +152,8 @@ export default class SourceUpdater {
   /**
    * que a callback to run
    */
-  queueCallback_(callback, done) {
-    this.callbacks_.push([callback.bind(this), done]);
+  queueCallback_(callback, done, removal = false) {
+    this.callbacks_.push([callback.bind(this), done, removal]);
     this.runCallback_();
   }
 
@@ -151,9 +163,46 @@ export default class SourceUpdater {
   runCallback_() {
     let callbacks;
 
-    if (this.sourceBuffer_ &&
-        !this.sourceBuffer_.updating &&
-        this.callbacks_.length) {
+    if (!this.callbacks_.length) {
+      // rest of the function relies on callback enqueued
+      return;
+    }
+
+    let totalBufferedTime = this.totalBufferedTime();
+    console.log('total buffered time:', totalBufferedTime);
+
+    if (totalBufferedTime > MAX_BUFFERED_SECONDS) {
+      console.log('currently buffered time exceeding limit, waiting to append in queue ...')
+
+      callbacks = this.callbacks_[this.callbacks_.length - 1];
+      // run callback-callback ;) indicate we're done to outer world
+      let pendingCallback = callbacks[1];
+      // clear it
+      callbacks[1] = null;
+      // run it
+      if (pendingCallback) {
+        pendingCallback();
+      }
+
+      // unjam things: if we can remove stuff try to do that first so we can append things again
+
+      // find first removal callback in queue and remove it from there
+      callbacks = this.callbacks_.slice(0).find((cb, index) => {
+        // removal flag on queue item -> we should remove it
+        return !!(cb[2] && this.callbacks_.splice(index, 1));
+      });
+                                // since we are currently exceeding limits in buffer
+                                // pretty safe to assume sourcebuffer exists?
+      if (callbacks !== undefined
+        && this.sourceBuffer_   // but ... we could have removed it in previous "done" callback!
+        && !this.sourceBuffer_.updating) {
+        console.warn('unjaming SourceBuffer task queue to allow re-appending flow by prioritizing removals');
+        this.pendingCallback_ = callbacks[1];
+        callbacks[0]();
+      }
+
+    } else if (this.sourceBuffer_ &&
+        !this.sourceBuffer_.updating) {
       callbacks = this.callbacks_.shift();
       this.pendingCallback_ = callbacks[1];
       callbacks[0]();
