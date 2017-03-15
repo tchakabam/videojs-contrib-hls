@@ -198,8 +198,9 @@ export default class SourceUpdater {
       });
                                 // since we are currently exceeding limits in buffer
                                 // pretty safe to assume sourcebuffer exists?
+                                // but we could have removed it in previous "done" callback
       if (callbacks !== undefined
-        && this.sourceBuffer_   // but ... we could have removed it in previous "done" callback!
+        && this.sourceBuffer_   
         && !this.sourceBuffer_.updating) {
         console.warn('unjaming SourceBuffer task queue by prioritizing removals');
         this.pendingCallback_ = callbacks[1];

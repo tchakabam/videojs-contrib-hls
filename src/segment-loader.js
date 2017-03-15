@@ -704,9 +704,10 @@ export default class SegmentLoader extends videojs.EventTarget {
       if (segment && segment.end) {
         startOfSegment = segment.end;
       } else {
-        startOfSegment = lastBufferedEnd;
+
         throw new Error('FIXME: need to check here if SourceUpdater has no pending appends in cue');
-        return null;
+        startOfSegment = lastBufferedEnd;
+        //return null;
       }
 
       bufferedTime = Math.max(0, startOfSegment - currentTime);
@@ -863,7 +864,8 @@ export default class SegmentLoader extends videojs.EventTarget {
       '@height', segmentInfo.playlist.attributes['RESOLUTION'].height,
       segmentInfo);
 
-    if (removeToTime = this.trimBuffer_(segmentInfo) > 0) {
+    removeToTime = this.trimBuffer_();
+    if (removeToTime > 0) {
       this.logger_('triming up to', removeToTime, 'from buffer');
       this.remove(0, removeToTime);
     }
@@ -1237,7 +1239,7 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @private
    */
   handleUpdateEnd_() {
-    this.logger_('handleUpdateEnd_', 'segmentInfo:', this.pendingSegment_);
+    this.logger_('handleUpdateEnd_', 'pending segmentInfo:', this.pendingSegment_);
 
     // buffer was updated without a segment being appended (e.g removal)
     // or we may have aborted.
