@@ -10,6 +10,7 @@ let hits = 0;
 
 const cacheInstance = {
   allowUpdates: DEFAULT_ALLOW_UPDATES,
+  errorOnOverflow: false,
   get: (uri, onlyData = true) => {
     let resource;
     if (!cache.has(uri)) {
@@ -46,7 +47,8 @@ const cacheInstance = {
     }
     let totalSize = cacheInstance.countBytes();
     if (totalSize > MAX_CACHE_SIZE_BYTES) {
-      throw new Error('Cache exceeds max size, has', totalSize, 'bytes');
+      errorOnOverflow && (throw new Error('Cache exceeds max size, has', totalSize, 'bytes'));
+      cacheInstance.purgeOldest();
     }
     return cacheInstance
   },
@@ -59,7 +61,7 @@ const cacheInstance = {
   purgeNotAccessedSince: (timeMillisSince) => {
     let now = Date.now();
     cache.forEach((resource, uri) => {
-      if (resource.accessedAt === null // never accessed
+      if (!resource.accessedAt // never accessed
         || resource.accessedAt < now - timeMillisSince) 
       cache.delete(uri);
     });
@@ -70,6 +72,18 @@ const cacheInstance = {
       cache.delete(uri);
     });
   },
+  purgeOldest: (type = 'accessed', count = 1) => {
+    let prop = type + 'At';
+    for (let i = 0; i < count; i++) {
+      let oldest = null;
+      cache.forEach((resource) => {
+        if (!oldest || resource[prop] < oldest[prop]) {
+          oldest = resource;
+        }
+      });
+      cache.delete(oldest.uri);
+    }
+  }
   reduce: (reduceFn, accuInit = 0) => {
     let accu = accuInit;
     cache.forEach((resource, uri) => {
