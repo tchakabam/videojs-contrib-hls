@@ -148,6 +148,9 @@ const stableSort = function(array, sortFn) {
  * bandwidth, accounting for some amount of bandwidth variance
  */
 Hls.STANDARD_PLAYLIST_SELECTOR = function() {
+
+  console.log('STANDARD_PLAYLIST_SELECTOR');
+
   let sortedPlaylists = this.playlists.master.playlists.slice();
   let bandwidthPlaylists = [];
   let bandwidthBestVariant;
@@ -445,6 +448,7 @@ class HlsHandler extends Component {
           return this.masterPlaylistController_.selectPlaylist;
         },
         set(selectPlaylist) {
+          console.log('using custom selectPlaylist');
           this.masterPlaylistController_.selectPlaylist = selectPlaylist.bind(this);
         }
       },
@@ -604,6 +608,10 @@ class HlsHandler extends Component {
 
   metricsHistory() {
     return this.masterPlaylistController_.mainSegmentLoader_.metricsHistory();
+  }
+
+  bufferInfo() {
+    return this.masterPlaylistController_.mainSegmentLoader_.bufferInfo();
   }
 
   /**

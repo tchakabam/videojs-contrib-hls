@@ -10,10 +10,9 @@ import { createTransferableMessage } from './bin-utils';
 import {cacheInstance as segmentCache} from './cache';
 
 // should be < 1 -> otherwise we'll remove from current playhead
-const BACK_BUFFER_TO_PRE_BUFFER_RATIO = 0.5; // fixme: when resulting backbuffer lower than segment duration might cause issues!
+const BACK_BUFFER_TO_PRE_BUFFER_RATIO = 0.2;
 // in seconds, should always be less than SourceBuffer max capacity
 const BACK_BUFFER_TRIM_TIME = SourceUpdater.MAX_BUFFERED_SECONDS * BACK_BUFFER_TO_PRE_BUFFER_RATIO; 
-
 // in ms
 const CHECK_BUFFER_DELAY = 500;
 
@@ -637,6 +636,7 @@ export default class SegmentLoader extends videojs.EventTarget {
   }
 
   bufferInfo() {
+    let goalBufferLength = this.goalBufferLength_;
     let buffered = this.sourceUpdater_.buffered();
     let currentTime = this.currentTime_();
     let lastBufferedEnd = 0;
@@ -644,7 +644,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       lastBufferedEnd = buffered.end(buffered.length - 1);
     }
     let bufferedTime = Math.max(0, lastBufferedEnd - currentTime);
-    return {bufferedTime, lastBufferedEnd, currentTime}; 
+    return {bufferedTime, lastBufferedEnd, currentTime, goalBufferLength}; 
   }
 
   /**
@@ -1059,8 +1059,10 @@ export default class SegmentLoader extends videojs.EventTarget {
 
       this.logger_('previous request bandwidth:', bandwidth, 'bits/s', 'rtt:', roundTrip, 'ms');
 
-      let {bufferedTime, currentTime, lastBufferedEnd} = this.bufferInfo();
-      this.addToMetricsHistory_({bandwidth, roundTrip, bufferedTime, currentTime, lastBufferedEnd});
+      let {bufferedTime, currentTime, lastBufferedEnd, goalBufferLength} = this.bufferInfo();
+      this.addToMetricsHistory_(
+        {bandwidth, roundTrip, bufferedTime, currentTime, lastBufferedEnd, goalBufferLength}
+      );
 
       // update analytics stats
       this.mediaBytesTransferred += request.bytesReceived || 0;
@@ -1336,13 +1338,14 @@ export default class SegmentLoader extends videojs.EventTarget {
       (segmentProcessingThroughput - rate) / (++this.throughput.count);
   }
 
-  addToMetricsHistory_({bandwidth, roundTrip, bufferedTime, currentTime, lastBufferedEnd}) {
+  addToMetricsHistory_({bandwidth, roundTrip, bufferedTime, currentTime, lastBufferedEnd, goalBufferLength}) {
     this.metricsHistory_.push({
       bandwidth,
       roundTrip,
       bufferedTime,
       currentTime,
-      lastBufferedEnd
+      lastBufferedEnd,
+      goalBufferLength
     });
   }
 
