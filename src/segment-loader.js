@@ -853,7 +853,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     let segmentXhr;
     let removeToTime = 0;
 
-    console.log('loading segment',
+    this.logger_('loading segment',
       '@currentTime', this.currentTime_(),
       '@mediaTime', segmentInfo.startOfSegment,
       '@bandwidth', segmentInfo.playlist.attributes['BANDWIDTH'],
@@ -863,6 +863,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     removeToTime = this.trimBuffer_(segmentInfo);
 
     if (removeToTime > 0) {
+      this.logger_('triming up to', removeToTime, 'from buffer');
       this.sourceUpdater_.remove(0, removeToTime);
     }
 
