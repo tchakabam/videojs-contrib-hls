@@ -7,7 +7,7 @@ import SourceUpdater from './source-updater';
 import Config from './config';
 import window from 'global/window';
 import { createTransferableMessage } from './bin-utils';
-import {Cache as segmentCache} from './cache';
+import {cacheInstance as segmentCache} from './cache';
 
 // should be < 1 -> otherwise we'll remove from current playhead
 const BACK_BUFFER_TO_PRE_BUFFER_RATIO = 0.5; // fixme: when resulting backbuffer lower than segment duration might cause issues!
@@ -1052,7 +1052,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.roundTrip = request.roundTripTime;
       this.bandwidth = request.bandwidth;
 
-      this.logger_('bandwidth:', this.bandwidth, 'rtt:', this.roundTrip);
+      this.logger_('previous request bandwidth:', this.bandwidth, 'bits/s', 'rtt:', this.roundTrip, 'ms');
 
       // update analytics stats
       this.mediaBytesTransferred += request.bytesReceived || 0;
@@ -1341,4 +1341,8 @@ export default class SegmentLoader extends videojs.EventTarget {
   qualitySwitchHistory() {
     return this.qualitySwitchHistory_.slice();
   }
+
+  static get Cache() {
+    return segmentCache;
+  } 
 }

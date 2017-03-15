@@ -1,21 +1,22 @@
 const DEFAULT_ALLOW_UPDATES = false;
+const MAX_CACHE_SIZE_BYTES = 1024 * 1e6; // 1024 Mbytes
 
 const cache = new Map();
 
 let bytesRead = 0;
 let bytesWritten = 0;
-let cacheMisses = 0;
-let cacheHits = 0;
+let misses = 0;
+let hits = 0;
 
-const Cache = {
+const cacheInstance = {
   allowUpdates: DEFAULT_ALLOW_UPDATES,
   get: (uri, onlyData = true) => {
     let resource;
     if (!cache.has(uri)) {
-      cacheMisses++;
+      misses++;
       return null;
     }
-    cacheHits++;
+    hits++;
     resource = cache.get(uri);
     resource.accessedAt = Date.now();
     if (typeof resource.data.byteLength === 'number') {
@@ -28,7 +29,7 @@ const Cache = {
     }
   },
   put: (uri, data) => {
-    if (!Cache.allowUpdates && cache.has(uri)) {
+    if (!cacheInstance.allowUpdates && cache.has(uri)) {
       throw new Error('Cache updates not allowed. Purge first! URI:', uri);
     }
     let createdAt = Date.now();
@@ -43,7 +44,11 @@ const Cache = {
     if (typeof resource.data.byteLength === 'number') {
       bytesWritten += resource.data.byteLength;
     }
-    return Cache;  
+    let totalSize = cacheInstance.countBytes();
+    if (totalSize > MAX_CACHE_SIZE_BYTES) {
+      throw new Error('Cache exceeds max size, has', totalSize, 'bytes');
+    }
+    return cacheInstance
   },
   purgeByUri: (uri) => {
     return cache.delete(uri);
@@ -64,9 +69,34 @@ const Cache = {
       if (createdAt < timestamp) 
       cache.delete(uri);
     });
+  },
+  reduce: (reduceFn, accuInit = 0) => {
+    let accu = accuInit;
+    cache.forEach((resource, uri) => {
+      accu = reduceFn.bind(this)(accu, resource);
+    });
+    return accu;
+  },
+  sumDataProperty: (field) => {
+    return cacheInstance.reduce((accu, resource) => {
+      return accu + resource.data[field];
+    });
+  },
+  countBytes: () => {
+    return cacheInstance.sumDataProperty('byteLength');
+  }
+};
+
+const getInfo = function() {
+  return {
+    bytesRead,
+    bytesWritten,
+    hits,
+    misses
   }
 }
 
 export default {
-  Cache
+  getInfo,
+  cacheInstance
 };
