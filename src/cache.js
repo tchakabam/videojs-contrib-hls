@@ -83,7 +83,7 @@ const cacheInstance = {
       });
       cache.delete(oldest.uri);
     }
-  }
+  },
   reduce: (reduceFn, accuInit = 0) => {
     let accu = accuInit;
     cache.forEach((resource, uri) => {
