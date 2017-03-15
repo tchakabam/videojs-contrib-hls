@@ -12,6 +12,9 @@ let segmentCacheBytesRead = 0;
 let segmentCacheBytesWritten = 0;
 const segmentCache = new Map();
 
+// in seconds
+const BACK_BUFFER_TRIM_TIME = 30;
+
 // in ms
 const CHECK_BUFFER_DELAY = 500;
 
@@ -971,7 +974,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       return seekable.start(0);
     }
 
-    removeToTime = currentTime - 60;
+    removeToTime = currentTime - BACK_BUFFER_TRIM_TIME;
 
     return removeToTime;
   }
