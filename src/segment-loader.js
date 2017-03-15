@@ -140,7 +140,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.currentTime_ = settings.currentTime;
     this.seekable_ = settings.seekable;
     this.seeking_ = settings.seeking;
-    this.setCurrentTime_ = settings.setCurrentTime;
+    this.setCurrentTime_ = settings.setCurrentTime; // fixme: not used here
     this.mediaSource_ = settings.mediaSource;
     this.hls_ = settings.hls;
     this.loaderType_ = settings.loaderType;
