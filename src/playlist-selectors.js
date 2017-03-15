@@ -223,6 +223,8 @@ const filterMovingAvg = function(signal, windowSize, delay = 0, extractor = (e) 
 };
 */
 
+const DEBUG = true;
+
 const SMOOTHING_ALPHA = 0.2;
 const WINDOW_SIZE = 6;
 const BANDWIDTH_MARGIN = 1.2;
@@ -230,7 +232,7 @@ const SAFE_FALLBACK_INDEX = false;
 
 const selectPlaylistSimple = function() {
 
-  console.log('SIMPLE_PLAYLIST_SELECTOR');
+  DEBUG && console.log('SIMPLE_PLAYLIST_SELECTOR');
 
   let sortedPlaylists = this.playlists.master.playlists.slice();
   let bandwidthPlaylists = [];
@@ -267,14 +269,14 @@ const selectPlaylistSimple = function() {
     estimatedBandwidth = 0;
   }
 
-  console.log('SYSTEM BW:', this.systemBandwidth, 'bits/s');
-  console.log('ESTIMATED BW EXP SMOOTHER:', expSmoothBw, 'bits/s, RTT:', expSmoothRtt, 'ms');
-  console.log('ESTIMATED BW FLAT AVG:', flatAvgBw, 'bits/s');
-  console.log('BUFFER LEVEL:', bufferedTime, 'of goal:', goalBufferLength, 'RTT-to-buffer-level ratio:', rttToBufferLevelRatio);
-  console.log('FLAG AVG BUFFER LEVEL:', flatAvgBufferLevel);
-  console.log('RTT-TO-BUFFER-PROJECTED BW:', projectedBw / 1e6, 'Mbits/s');
-  console.log('QUANIZATION ESTIMATED BANDWIDTH:', estimatedBandwidth / 1e6, 'Mbits/s');
-  console.log('MAX BITRATE USED:', estimatedBandwidth / bandwidthVariance);
+  DEBUG && console.log('SYSTEM BW:', this.systemBandwidth, 'bits/s');
+  DEBUG && console.log('ESTIMATED BW EXP SMOOTHER:', expSmoothBw, 'bits/s, RTT:', expSmoothRtt, 'ms');
+  DEBUG && console.log('ESTIMATED BW FLAT AVG:', flatAvgBw, 'bits/s');
+  DEBUG && console.log('BUFFER LEVEL:', bufferedTime, 'of goal:', goalBufferLength, 'RTT-to-buffer-level ratio:', rttToBufferLevelRatio);
+  DEBUG && console.log('FLAG AVG BUFFER LEVEL:', flatAvgBufferLevel);
+  DEBUG && console.log('RTT-TO-BUFFER-PROJECTED BW:', projectedBw / 1e6, 'Mbits/s');
+  DEBUG && console.log('QUANIZATION ESTIMATED BANDWIDTH:', estimatedBandwidth / 1e6, 'Mbits/s');
+  DEBUG && console.log('MAX BITRATE USED:', estimatedBandwidth / bandwidthVariance);
 
   // playlist selection ...
 
@@ -286,7 +288,7 @@ const selectPlaylistSimple = function() {
   // filter out any variant that has greater effective bitrate
   // than the current estimated bandwidth
   bandwidthPlaylists = sortedPlaylists.filter(function(elem, index) {
-    console.log('BANDWIDTH:', elem.attributes.BANDWIDTH, 
+    DEBUG && console.log('BANDWIDTH:', elem.attributes.BANDWIDTH, 
                 'RESOLUTION.height:', elem.attributes.RESOLUTION.height);
     return (!missingEstimate && index === 0) ||
            (elem.attributes && elem.attributes.BANDWIDTH &&
@@ -304,7 +306,7 @@ const selectPlaylistSimple = function() {
   // fallback chain of variants
   selected = bandwidthBestVariant || sortedPlaylists[fallbackIndex];
 
-  console.log('SELECTED:', selected.attributes.RESOLUTION.height);
+  DEBUG && console.log('SELECTED:', selected.attributes.RESOLUTION.height);
 
   return selected;
 };
