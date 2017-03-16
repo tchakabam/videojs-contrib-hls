@@ -145,6 +145,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.goalBufferLength_ = settings.goalBufferLength || Config.GOAL_BUFFER_LENGTH;
 
     // private instance variables
+    this.loadedUntil_ = 0;
     this.mediaIndexBeforeResync_ = null;
     this.checkBufferTimeout_ = null;
     this.error_ = void 0;
@@ -639,12 +640,13 @@ export default class SegmentLoader extends videojs.EventTarget {
     let goalBufferLength = this.goalBufferLength_;
     let buffered = this.sourceUpdater_.buffered();
     let currentTime = this.currentTime_();
+    let loadedUntil = this.loadedUntil_;
     let lastBufferedEnd = 0;
     if (buffered.length) {
       lastBufferedEnd = buffered.end(buffered.length - 1);
     }
     let bufferedTime = Math.max(0, lastBufferedEnd - currentTime);
-    return {bufferedTime, lastBufferedEnd, currentTime, goalBufferLength}; 
+    return {bufferedTime, lastBufferedEnd, loadedUntil, currentTime, goalBufferLength}; 
   }
 
   /**
@@ -661,7 +663,7 @@ export default class SegmentLoader extends videojs.EventTarget {
    */
   checkBuffer_(playlist, mediaIndex, hasPlayed, syncPoint) {
     let startOfSegment;
-    let {lastBufferedEnd, bufferedTime, currentTime} = this.bufferInfo();
+    let {lastBufferedEnd, bufferedTime, loadedUntil, currentTime} = this.bufferInfo();
 
     if (!playlist.segments.length) {
       return null;
@@ -685,6 +687,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       'currentTime:', currentTime,
       'syncPoint:', syncPoint,
       'fetchAtBuffer:', this.fetchAtBuffer_,
+      'loadedUntil', loadedUntil,
       'bufferedTime:', bufferedTime);
 
     // When the syncPoint is null, there is no way of determining a good
@@ -705,12 +708,13 @@ export default class SegmentLoader extends videojs.EventTarget {
       if (segment && segment.end) {
         startOfSegment = segment.end;
       } else {
-
+        // FIXME !!! (this wouldn't happen with "normal" playlists though)
         throw new Error('FIXME: need to check here if SourceUpdater has no pending appends in cue');
         startOfSegment = lastBufferedEnd;
         //return null;
       }
 
+      // limit downloading independently of SourceBuffer content
       bufferedTime = Math.max(0, startOfSegment - currentTime);
       if (bufferedTime >= this.goalBufferLength_) {
         return null;
@@ -725,10 +729,9 @@ export default class SegmentLoader extends videojs.EventTarget {
     if (this.fetchAtBuffer_) {
       // Find the segment containing the end of the buffer
       let mediaPlaylistInfo = getMediaInfoForTime(playlist,
-                                                lastBufferedEnd,
+                                                Math.max(lastBufferedEnd, loadedUntil),
                                                 syncPoint.segmentIndex,
                                                 syncPoint.time);
-
       mediaIndex = mediaPlaylistInfo.mediaIndex;
       startOfSegment = mediaPlaylistInfo.startTime;
     } else {
@@ -737,11 +740,12 @@ export default class SegmentLoader extends videojs.EventTarget {
                                                 currentTime,
                                                 syncPoint.segmentIndex,
                                                 syncPoint.time);
-
       mediaIndex = mediaPlaylistInfo.mediaIndex;
       startOfSegment = mediaPlaylistInfo.startTime;
     }
+
     this.logger_('getMediaInfoForTime',
+      'fetchAtBuffer', this.fetchAtBuffer_,
       'mediaIndex:', mediaIndex,
       'startOfSegment:', startOfSegment);
 
@@ -1261,6 +1265,11 @@ export default class SegmentLoader extends videojs.EventTarget {
     let segmentInfo = this.pendingSegment_;
     let segment = segmentInfo.segment;
     let isWalkingForward = this.mediaIndex !== null;
+
+    this.logger_('appended up to:', segment.end);
+    if (segment.end) {
+      this.loadedUntil_ = segment.end;
+    }
 
     // first lets update eventually the switch history
     // if we appended the segment to the buffer at the switch point
