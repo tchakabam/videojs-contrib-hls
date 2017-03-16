@@ -98,7 +98,7 @@ const stableSort = function(array, sortFn) {
 
 const selectPlaylistStandard = function() {
 
-  console.log('STANDARD_PLAYLIST_SELECTOR');
+  //console.log('STANDARD_PLAYLIST_SELECTOR');
 
   let sortedPlaylists = this.playlists.master.playlists.slice();
   let bandwidthPlaylists = [];
@@ -223,7 +223,7 @@ const filterMovingAvg = function(signal, windowSize, delay = 0, extractor = (e) 
 };
 */
 
-const DEBUG = true;
+const DEBUG = false;
 
 const SMOOTHING_ALPHA = 0.2;
 const WINDOW_SIZE = 6;
