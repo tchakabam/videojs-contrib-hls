@@ -497,11 +497,11 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @private
    */
   monitorBufferTick_() {
+    this.checkForQualitySwitchPlayed_();
+
     if (this.state === 'READY') {
       this.fillBuffer_();
     }
-
-    this.checkForQualitySwitchPlayed_();
 
     if (this.checkBufferTimeout_) {
       window.clearTimeout(this.checkBufferTimeout_);
