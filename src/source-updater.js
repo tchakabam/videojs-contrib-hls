@@ -180,7 +180,7 @@ export default class SourceUpdater {
 
     if (totalBufferedTime > MAX_BUFFERED_SECONDS) {
 
-      console.warn('SourceBuffer size exceeds max');
+      //console.log('SourceBuffer size exceeds max');
 
       callbacks = this.callbacks_[this.callbacks_.length - 1];
       // run callback-callback ;) indicate we're done to outer world
@@ -205,7 +205,7 @@ export default class SourceUpdater {
       if (callbacks !== undefined
         && this.sourceBuffer_   
         && !this.sourceBuffer_.updating) {
-        console.warn('unjaming SourceBuffer task queue by prioritizing removals');
+        //console.log('unjaming SourceBuffer task queue by prioritizing removals');
         this.pendingCallback_ = callbacks[1];
         callbacks[0]();
       }
