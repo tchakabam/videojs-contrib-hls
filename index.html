@@ -34,9 +34,13 @@
   </video>
 
   <p>
-    Buffering in progress:
-    <progress value="0" max="100"></progress>
+    Buffer preloading progress:
+    <progress id="buffer-progress" value="0" max="100"></progress>
+    <br>
+    Buffer level:
+    <progress id="buffer-level" value="0" max="100"></progress>
     <br>Time: <span id=current-time></span>
+    <br>Buffer: <span id=current-buffer></span>
   </p>
 
   <form id=load-url>
@@ -59,33 +63,59 @@
 
       // global settings
       videojs.options.hls.debug = true;
-      videojs.options.hls.smoothQualitySwitch = true
-      videojs.options.hls.goalBufferLength = 600;
-      //videojs.Hls.GOAL_BUFFER_LENGTH = 600;
+      videojs.options.hls.smoothQualitySwitch = true;
+      // WARNING !!!!! when this is too high the MSE SourceBuffer overfloods
+      videojs.options.hls.goalBufferLength = 300;
 
+      var hls;
       var time = document.querySelector('#current-time');
-      var progress = document.querySelector('progress');
+      var buffer = document.querySelector('#current-buffer');
+      var progress = document.querySelector('#buffer-progress');
+      var bufferLevel = document.querySelector('#buffer-level');
       var url = document.querySelector('#url').value;
       document.querySelector('video source').src = url;
 
       // create player
       var player = window.player = videojs('videojs-contrib-hls-player');
+
+      player.volume(0);
+
       player.on('mediachange', function(e, data) {
         console.log('mediachange', data);
       });
 
       time.innerHTML = player.currentTime();
 
+      var currentResolution = 360;
+
       player.on('loadstart', function() {
+
         console.log('starting HLS client');
-        var hls = window.hls = player.tech_.hls;
+        
+        hls = window.hls = player.tech_.hls;
+
+        hls.selectPlaylist = videojs.Hls.PlaylistSelectors['ADVANCED'];
 
         hls.on('qualityswitchpending', function(e, data) {
           console.log('qualityswitchpending', data);
         });
+
         hls.on('qualityswitchbuffered', function(e, data) {
           console.log('qualityswitchbuffered', data);
         });
+        hls.on('qualityswitchplayed', function(e, data) {
+
+          currentResolution = hls.qualitySwitchHistory().filter(function(qs) {
+            return qs.played;
+          }).pop().qualitySwitch['RESOLUTION'].height;
+
+          console.log('currentResolution', currentResolution);
+        });
+      });
+
+      player.on('loadedmetadata', function() {
+        console.log('loadedmetadata');
+        //enableAllQualities();
       });
 
       player.on('progress', function(e) {
@@ -100,8 +130,12 @@
       });
 
       player.on('timeupdate', function() {
+        let {bufferedTime, goalBufferLength} = hls.bufferInfo();
         time.innerHTML = player.currentTime();
-      })
+        buffer.innerHTML = bufferedTime + ' of ' + goalBufferLength;
+        bufferLevel.value = bufferedTime;
+        bufferLevel.max = 60 || goalBufferLength;
+      });
 
       var loadUrl = document.getElementById('load-url');
       loadUrl.addEventListener('submit', function(event) {
@@ -115,11 +149,26 @@
 
     }(window, window.videojs));
 
+    function enableAllQualities() {
+      console.log('enableAllQualities');
+      hls.representations().forEach(function(rep) {
+        rep.enabled(true);
+      });  
+    }
+
     function setQuality(pixelHeight) {
-      window.player.tech_.hls.representations().forEach(function(rep) {
+      // better proceed in two steps:
+      // that way we will never have a state 
+      // where no representation is enabled 
+      // (which yields an undertmined fallback, which isn't what
+      //  is expected of this function)
+      hls.representations().forEach(function(rep) {
         if(rep.height === pixelHeight){
           rep.enabled(true);
-        } else {
+        }
+      });
+      hls.representations().forEach(function(rep) {
+        if(rep.height !== pixelHeight){
           rep.enabled(false);
         }
       });
