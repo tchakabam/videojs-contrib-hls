@@ -231,9 +231,9 @@ const BANDWIDTH_MARGIN = 1.2;
 const SAFE_FALLBACK_INDEX = false;
 const FALLBACK_INDEX_DIVISOR = 3;
 
-const selectPlaylistSimple = function() {
+const selectPlaylistAdvanced = function() {
 
-  DEBUG && console.log('SIMPLE_PLAYLIST_SELECTOR');
+  //console.log('ADVANCED_PLAYLIST_SELECTOR');
 
   let sortedPlaylists = this.playlists.master.playlists.slice();
   let bandwidthPlaylists = [];
@@ -313,6 +313,6 @@ const selectPlaylistSimple = function() {
 };
 
 export default {
-	SIMPLE: selectPlaylistSimple,
+	ADVANCED: selectPlaylistAdvanced,
 	STANDARD: selectPlaylistStandard
 };
