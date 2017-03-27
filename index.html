@@ -43,11 +43,16 @@
     <br>Buffer: <span id=current-buffer></span>
   </p>
 
+  <button onclick="enableVideoTrack(0)">Camera 1</button>
+  <button onclick="enableVideoTrack(1)">Camera 2</button>
+  <button onclick="enableVideoTrack(2)">Camera 3</button>
+  <button onclick="enableVideoTrack(3)">Camera 4</button>
+
   <form id=load-url>
     <label>
       Video URL:
-      <input id=url type=url value="http://localhost:9999/media/alt-video/master-playlist.m3u8">
-      <input id=url type=url value="https://ingest2.genf2017.compuccino.tv/vod/smil:genf2017vod.smil/playlist.m3u8">
+      <!--<input id=url type=url value="http://localhost:9999/media/alt-video/master-playlist.m3u8">-->
+      <input id=url type=url value="https://ingest2.genf2017.compuccino.tv/vod/smil:naias2017ar2.smil/playlist.m3u8">
     </label>
     <button type=submit>Load</button>
   </form>
@@ -64,9 +69,9 @@
 
       // global settings
       videojs.options.hls.debug = true;
-      videojs.options.hls.smoothQualitySwitch = true;
+      //videojs.options.hls.smoothQualitySwitch = true;
       // WARNING !!!!! when this is too high the MSE SourceBuffer overfloods
-      videojs.options.hls.goalBufferLength = 300;
+      //videojs.options.hls.goalBufferLength = 30;
 
       var hls;
       var time = document.querySelector('#current-time');
@@ -77,7 +82,16 @@
       document.querySelector('video source').src = url;
 
       // create player
-      var player = window.player = videojs('videojs-contrib-hls-player');
+      var player = window.player = videojs('videojs-contrib-hls-player', {
+        html5: {
+          hls: {
+            smoothQualitySwitch: true,
+            goalBufferLength: 60,
+            audioEnabled: false,
+            videoEnabled: true
+          }    
+        }
+      });
 
       player.volume(0);
 
@@ -176,14 +190,7 @@
     }
 
     function enableVideoTrack(index) {
-      var activeGroup = hls.masterPlaylistController_.activeVideoGroup();
-
-      activeGroup.forEach(function(track) {
-        track.enabled = false;
-      })
-      activeGroup[index].enabled = true;
-
-      hls.videoTrackChange_();
+      hls.enableVideoTrack(index);
     }
 
   </script>
