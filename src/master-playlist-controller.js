@@ -588,7 +588,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
 
   /**
-   * fill our internal list of HlsAudioTracks with data from
+   * fill our internal list of HlsVideoTracks with data from
    * the master playlist or use a default
    *
    * @private
