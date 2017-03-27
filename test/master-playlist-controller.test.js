@@ -46,6 +46,9 @@ QUnit.module('MasterPlaylistController', {
     };
 
     this.masterPlaylistController = this.player.tech_.hls.masterPlaylistController_;
+
+    // Make segment metadata noop since most test segments dont have real data
+    this.masterPlaylistController.mainSegmentLoader_.addSegmentMetadataCue_ = () => {};
   },
   afterEach() {
     this.env.restore();
@@ -218,6 +221,8 @@ QUnit.test('if buffered, will request second segment byte range', function(asser
     type: 'application/vnd.apple.mpegurl'
   });
   this.masterPlaylistController = this.player.tech_.hls.masterPlaylistController_;
+  // Make segment metadata noop since most test segments dont have real data
+  this.masterPlaylistController.mainSegmentLoader_.addSegmentMetadataCue_ = () => {};
 
   // mock that the user has played the video before
   this.player.tech_.triggerReady();
@@ -240,6 +245,7 @@ QUnit.test('if buffered, will request second segment byte range', function(asser
   this.masterPlaylistController.mainSegmentLoader_.fetchAtBuffer_ = true;
   this.masterPlaylistController.mediaSource.sourceBuffers[0].trigger('updateend');
   this.clock.tick(10 * 1000);
+  this.clock.tick(1);
   assert.equal(this.requests[2].headers.Range, 'bytes=522828-1110327');
 
   // verify stats
@@ -265,6 +271,9 @@ function(assert) {
     type: 'application/vnd.apple.mpegurl'
   });
   this.masterPlaylistController = this.player.tech_.hls.masterPlaylistController_;
+  // Make segment metadata noop since most test segments dont have real data
+  this.masterPlaylistController.mainSegmentLoader_.addSegmentMetadataCue_ = () => {};
+
   // maybe not needed if https://github.com/videojs/video.js/issues/2326 gets fixed
   this.clock.tick(1);
   assert.ok(!this.masterPlaylistController.masterPlaylistLoader_.media(),
@@ -366,6 +375,61 @@ QUnit.test('updates the enabled track when switching audio groups', function(ass
 
   assert.ok(mpc.activeAudioGroup().filter((track) => track.enabled)[0],
            'enabled a track in the new audio group');
+});
+
+QUnit.test('detects if the player is stuck at the playlist end', function(assert) {
+  let playlistCopy = Hls.Playlist.playlistEnd;
+
+  this.masterPlaylistController.mediaSource.trigger('sourceopen');
+  this.standardXHRResponse(this.requests.shift());
+  let playlist = this.player.tech_.hls.selectPlaylist();
+
+  // not stuck at playlist end when no seekable, even if empty buffer
+  // and positive currentTime
+  this.masterPlaylistController.seekable = () => videojs.createTimeRange();
+  this.player.tech_.buffered = () => videojs.createTimeRange();
+  this.player.tech_.setCurrentTime(170);
+  assert.ok(!this.masterPlaylistController.stuckAtPlaylistEnd_(playlist), 'not stuck at playlist end');
+
+  // not stuck at playlist end when no seekable, even if empty buffer
+  // and currentTime 0
+  this.player.tech_.setCurrentTime(0);
+  assert.ok(!this.masterPlaylistController.stuckAtPlaylistEnd_(playlist), 'not stuck at playlist end');
+
+  // not stuck at playlist end when no seekable but current time is at
+  // the end of the buffered range
+  this.player.tech_.buffered = () => videojs.createTimeRange(0, 170);
+  assert.ok(!this.masterPlaylistController.stuckAtPlaylistEnd_(playlist), 'not stuck at playlist end');
+
+  // not stuck at playlist end when currentTime not at seekable end
+  // even if the buffer is empty
+  this.masterPlaylistController.seekable = () => videojs.createTimeRange(0, 130);
+  this.player.tech_.setCurrentTime(50);
+  this.player.tech_.buffered = () => videojs.createTimeRange();
+  Hls.Playlist.playlistEnd = () => 130;
+  assert.ok(!this.masterPlaylistController.stuckAtPlaylistEnd_(playlist), 'not stuck at playlist end');
+
+  // not stuck at playlist end when buffer reached the absolute end of the playlist
+  // and current time is in the buffered range
+  this.player.tech_.setCurrentTime(159);
+  this.player.tech_.buffered = () => videojs.createTimeRange(0, 160);
+  Hls.Playlist.playlistEnd = () => 160;
+  assert.ok(!this.masterPlaylistController.stuckAtPlaylistEnd_(playlist), 'not stuck at playlist end');
+
+  // stuck at playlist end when there is no buffer and playhead
+  // reached absolute end of playlist
+  this.player.tech_.setCurrentTime(160);
+  assert.ok(this.masterPlaylistController.stuckAtPlaylistEnd_(playlist), 'stuck at playlist end');
+
+  // stuck at playlist end when current time reached the buffer end
+  // and buffer has reached absolute end of playlist
+  this.masterPlaylistController.seekable = () => videojs.createTimeRange(90, 130);
+  this.player.tech_.buffered = () => videojs.createTimeRange(0, 170);
+  this.player.tech_.setCurrentTime(170);
+  Hls.Playlist.playlistEnd = () => 170;
+  assert.ok(this.masterPlaylistController.stuckAtPlaylistEnd_(playlist), 'stuck at playlist end');
+
+  Hls.Playlist.playlistEnd = playlistCopy;
 });
 
 QUnit.test('blacklists switching from video+audio playlists to audio only', function(assert) {
@@ -567,11 +631,11 @@ QUnit.test('selects a playlist after main/combined segment downloads', function(
   this.standardXHRResponse(this.requests.shift());
 
   // "downloaded" a segment
-  this.masterPlaylistController.mainSegmentLoader_.trigger('progress');
+  this.masterPlaylistController.mainSegmentLoader_.trigger('bandwidthupdate');
   assert.strictEqual(calls, 2, 'selects after the initial segment');
 
   // and another
-  this.masterPlaylistController.mainSegmentLoader_.trigger('progress');
+  this.masterPlaylistController.mainSegmentLoader_.trigger('bandwidthupdate');
   assert.strictEqual(calls, 3, 'selects after additional segments');
   // verify stats
   assert.equal(this.player.tech_.hls.stats.bandwidth, 4194304, 'default bandwidth');
@@ -957,37 +1021,38 @@ QUnit.test('respects useCueTags option', function(assert) {
   videojs.options.hls = origHlsOptions;
 });
 
-QUnit.test('sends decrypter messages to correct segment loader', function(assert) {
+QUnit.test('correctly sets alternate audio track kinds', function(assert) {
+  this.requests.length = 0;
   this.player = createPlayer();
   this.player.src({
-    src: 'manifest/media.m3u8',
+    src: 'manifest/alternate-audio-accessibility.m3u8',
     type: 'application/vnd.apple.mpegurl'
   });
 
-  let masterPlaylistController = this.player.tech_.hls.masterPlaylistController_;
-  let mainHandleDecryptedCalls = [];
-  let audioHandleDecryptedCalls = [];
+  // master
+  this.standardXHRResponse(this.requests.shift());
+  // media - required for loadedmetadata
+  this.standardXHRResponse(this.requests.shift());
 
-  masterPlaylistController.mainSegmentLoader_ = {
-    handleDecrypted_: (data) => {
-      mainHandleDecryptedCalls.push(data);
-    }
-  };
-  masterPlaylistController.audioSegmentLoader_ = {
-    handleDecrypted_: (data) => {
-      audioHandleDecryptedCalls.push(data);
-    }
-  };
+  const audioTracks = this.player.tech_.audioTracks();
 
-  masterPlaylistController.decrypter_.onmessage({ data: { source: 'audio' } });
-  assert.equal(mainHandleDecryptedCalls.length, 0, 'one call to main loader');
-  assert.equal(audioHandleDecryptedCalls.length, 1, 'one call to audio loader');
-  assert.deepEqual(audioHandleDecryptedCalls[0], { source: 'audio' }, 'sent data');
-
-  masterPlaylistController.decrypter_.onmessage({ data: { source: 'main' } });
-  assert.equal(mainHandleDecryptedCalls.length, 1, 'one call to main loader');
-  assert.equal(audioHandleDecryptedCalls.length, 1, 'one call to audio loader');
-  assert.deepEqual(mainHandleDecryptedCalls[0], { source: 'main' }, 'sent data');
+  assert.equal(audioTracks.length, 4, 'added 4 audio tracks');
+  assert.equal(audioTracks[0].id, 'English', 'contains english track');
+  assert.equal(audioTracks[0].kind, 'main', 'english track\'s kind is "main"');
+  assert.equal(audioTracks[1].id,
+               'English Descriptions',
+               'contains english descriptions track');
+  assert.equal(audioTracks[1].kind,
+               'main-desc',
+               'english descriptions track\'s kind is "main-desc"');
+  assert.equal(audioTracks[2].id, 'Français', 'contains french track');
+  assert.equal(audioTracks[2].kind,
+               'alternative',
+               'french track\'s kind is "alternative"');
+  assert.equal(audioTracks[3].id, 'Espanol', 'contains spanish track');
+  assert.equal(audioTracks[3].kind,
+               'alternative',
+               'spanish track\'s kind is "alternative"');
 });
 
 QUnit.module('Codec to MIME Type Conversion');
