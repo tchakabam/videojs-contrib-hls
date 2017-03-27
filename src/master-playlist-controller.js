@@ -743,14 +743,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
     // TODO: check if this makes sense! (SH)
     this.masterPlaylistLoader_.pause();
 
-    // TODO: fix this workaround
     this.mainSegmentLoader_.pause();
-
-    if (!track.properties_.resolvedUri) {
-      this.mainSegmentLoader_.resetEverything();
-      return;
-    }
-
+    this.mainSegmentLoader_.abort();
     this.mainSegmentLoader_.resetEverything();
 
     // startup playlist and segment loaders for the enabled video
