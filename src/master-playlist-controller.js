@@ -719,8 +719,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
   setupVideo() {
 
-    // determine whether seperate loaders are required for the audio
-    // rendition
     let videoGroup = this.activeVideoGroup();
     let track = videoGroup.filter((videoTrack) => {
       return videoTrack.enabled;
