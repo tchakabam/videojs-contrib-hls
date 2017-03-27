@@ -154,6 +154,7 @@ export default class SourceUpdater {
   }
 
   flush() {
+    this.pendingCallback_ = null;
     this.callbacks_ = [];
   }
 
