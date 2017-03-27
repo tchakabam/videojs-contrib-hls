@@ -49,8 +49,44 @@
   <script src="/node_modules/video.js/dist/video.js"></script>
   <script src="/dist/videojs-contrib-hls.js"></script>
   <script>
+
+    /*
+     * Experimental IE version detection function (if needed)
+     *
+     */
+    function getInternetExplorerVersion()
+    {
+      var rv = -1;
+      if (navigator.appName == 'Microsoft Internet Explorer')
+      {
+        var ua = navigator.userAgent;
+        var re  = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+        if (re.exec(ua) != null)
+          rv = parseFloat( RegExp.$1 );
+      }
+      else if (navigator.appName == 'Netscape')
+      {
+        var ua = navigator.userAgent;
+        var re  = new RegExp("Trident/.*rv:([0-9]{1,}[\.0-9]{0,})");
+        if (re.exec(ua) != null)
+          rv = parseFloat( RegExp.$1 );
+      }
+      return rv;
+    }
+
+    // rudimentary IE detection (should work at least for IE10/11)
+    var userAgent = window.navigator.userAgent;
+    var isProbablyIE10or11 = userAgent.includes('Windows NT') 
+                      && (userAgent.includes('Trident/') || userAgent.includes('MSIE'));
+
     (function(window, videojs) {
-      var player = window.player = videojs('videojs-contrib-hls-player');
+
+      var player = window.player = videojs('videojs-contrib-hls-player', {
+        techOrder: isProbablyIE10or11 ? ['flash'] : ['html5', 'flash'] // when on IE force Flash, 
+                                                                       // otherwise only as fallback, 
+                                                                       // since we expect MSE API enabled 
+                                                                       // and working on other (recent) browsers
+      });
 
       // hook up the video switcher
       var loadUrl = document.getElementById('load-url');
