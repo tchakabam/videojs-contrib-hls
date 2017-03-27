@@ -307,10 +307,14 @@ export class MasterPlaylistController extends videojs.EventTarget {
       }
 
       this.fillVideoTracks_();
+
       this.setupVideo();
 
       this.fillAudioTracks_();
-      this.setupAudio();
+      
+      if (!this.hls_.options_.audioDisabled) {
+        this.setupAudio();
+      }
 
       try {
         this.setupSourceBuffers_();
