@@ -548,7 +548,7 @@ class HlsHandler extends Component {
     this.masterPlaylistController_.on('audioupdate', () => {
       // clear current audioTracks
       this.tech_.clearTracks('audio');
-      this.masterPlaylistController_.activeAudioGroup().forEach((audioTrack) => {
+      this.activeAudioGroup_().forEach((audioTrack) => {
         this.tech_.audioTracks().addTrack(audioTrack);
       });
     });
@@ -556,7 +556,7 @@ class HlsHandler extends Component {
     this.masterPlaylistController_.on('videoupdate', () => {
       // clear current audioTracks
       this.tech_.clearTracks('video');
-      this.masterPlaylistController_.activeVideoGroup().forEach((videoTrack) => {
+      this.activeVideoGroup_().forEach((videoTrack) => {
         this.tech_.videoTracks().addTrack(videoTrack);
       });
     });
@@ -634,6 +634,37 @@ class HlsHandler extends Component {
    */
   activeAudioGroup_() {
     return this.masterPlaylistController_.activeAudioGroup();
+  }
+
+  /**
+   * a helper for grabbing the active video group from MasterPlaylistController
+   *
+   * @private
+   */
+  activeVideoGroup_() {
+    return this.masterPlaylistController_.activeVideoGroup();
+  }
+
+  enableAudioTrack(index) {
+    var activeGroup = this.activeAudioGroup_();
+
+    activeGroup.forEach(function(track) {
+      track.enabled = false;
+    })
+    activeGroup[index].enabled = true;
+
+    this.masterPlaylistController_.setupAudio();
+  }
+
+  enableVideoTrack(index) {
+    var activeGroup = this.activeVideoGroup_();
+
+    activeGroup.forEach(function(track) {
+      track.enabled = false;
+    })
+    activeGroup[index].enabled = true;
+
+    this.masterPlaylistController_.setupVideo();
   }
 
   /**
