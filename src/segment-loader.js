@@ -121,7 +121,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     if (!options.mediaSource) {
       throw new TypeError('No MediaSource specified');
     }
-    let settings = videojs.mergeOptions(videojs.options.hls, options);
+    let settings = options;
 
     // public properties
     this.state = 'INIT';
@@ -140,9 +140,11 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.mediaSource_ = settings.mediaSource;
     this.hls_ = settings.hls;
     this.loaderType_ = settings.loaderType;
-    this.syncSegmentUseInfiniteWindow_ = settings.syncSegmentUseInfiniteWindow;
-    this.syncSegmentUseAlignment_ = settings.syncSegmentUseAlignment;
-    this.goalBufferLength_ = settings.goalBufferLength || Config.GOAL_BUFFER_LENGTH;
+
+    // setup optional parameters
+    this.syncSegmentUseInfiniteWindow_ = this.hls_.options_.syncSegmentUseInfiniteWindow || false;
+    this.syncSegmentUseAlignment_ = this.hls_.options_.syncSegmentUseAlignment || false;
+    this.goalBufferLength_ = this.hls_.options_.goalBufferLength || Config.GOAL_BUFFER_LENGTH;
 
     // private instance variables
     this.loadedUntil_ = 0;
