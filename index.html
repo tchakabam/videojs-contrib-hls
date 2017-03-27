@@ -67,12 +67,6 @@
   <script>
     (function(window, videojs) {
 
-      // global settings
-      videojs.options.hls.debug = true;
-      //videojs.options.hls.smoothQualitySwitch = true;
-      // WARNING !!!!! when this is too high the MSE SourceBuffer overfloods
-      //videojs.options.hls.goalBufferLength = 30;
-
       var hls;
       var time = document.querySelector('#current-time');
       var buffer = document.querySelector('#current-buffer');
@@ -84,11 +78,12 @@
       // create player
       var player = window.player = videojs('videojs-contrib-hls-player', {
         html5: {
+          debug: true,
           hls: {
+            debug: true,
             smoothQualitySwitch: true,
             goalBufferLength: 60,
-            audioEnabled: false,
-            videoEnabled: true
+            audioDisabled: false
           }    
         }
       });
