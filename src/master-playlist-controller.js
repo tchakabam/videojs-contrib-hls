@@ -734,18 +734,15 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
     console.log('Enabling new video track rendition: ' + track.id);
 
+    this.mainSegmentLoader_.pause();
+    this.mainSegmentLoader_.abort();
+    this.mainSegmentLoader_.resetEverything();
+
     // stop playlist and segment loading for video
     if (this.videoPlaylistLoader_) {
       this.videoPlaylistLoader_.dispose();
       this.videoPlaylistLoader_ = null;
     }
-
-    // TODO: check if this makes sense! (SH)
-    this.masterPlaylistLoader_.pause();
-
-    this.mainSegmentLoader_.pause();
-    this.mainSegmentLoader_.abort();
-    this.mainSegmentLoader_.resetEverything();
 
     // startup playlist and segment loaders for the enabled video
     // track
