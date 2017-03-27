@@ -786,9 +786,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
     });
 
     this.videoPlaylistLoader_.on('error', () => {
-      videojs.log.warn('Problem encountered loading the alternate audio track' +
+      videojs.log.warn('Problem encountered loading the alternate video track' +
                        '. Switching back to default.');
-      this.mainSegmentLoader_.abort();
       this.setupVideo();
     });
   }
