@@ -564,7 +564,11 @@ export default class SegmentLoader extends videojs.EventTarget {
     // first playlist or playlist with new quality attributes (not assumable only by URI diff)
     // enqueue quality switch as pending!
     if (this.hasPlayed_()
-      && (!oldPlaylist || qualitiesDiffer(oldPlaylist.attributes, newPlaylist.attributes))) {
+      && (!oldPlaylist 
+        || !oldPlaylist.attributes || !newPlaylist.attributes // somehow we dont have attributes information
+                                                              // in that case best effort is to assume a quality change
+                                                              // since at least there are two different playlists
+        || qualitiesDiffer(oldPlaylist.attributes, newPlaylist.attributes))) {
       let quality = newPlaylist.attributes;
       this.qualitySwitchesPending_.push(quality);
       this.logger_('quality switch pending', quality);
@@ -867,8 +871,8 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.logger_('loading segment',
       '@currentTime', this.currentTime_(),
       '@mediaTime', segmentInfo.startOfSegment,
-      '@bandwidth', segmentInfo.playlist.attributes['BANDWIDTH'],
-      '@height', segmentInfo.playlist.attributes['RESOLUTION'].height,
+      '@bandwidth', segmentInfo.playlist.attributes ? segmentInfo.playlist.attributes['BANDWIDTH'] : 'unknown',
+      '@height', segmentInfo.playlist.attributes ? segmentInfo.playlist.attributes['RESOLUTION'].height : 'unknown',
       segmentInfo);
 
     removeToTime = this.trimBuffer_();
