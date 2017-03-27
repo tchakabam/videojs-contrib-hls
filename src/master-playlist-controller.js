@@ -237,7 +237,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
     this.seekable_ = videojs.createTimeRanges();
     this.hasPlayed_ = () => false;
 
-    this.syncController_ = new SyncController();
+    this.syncController_ = new SyncController(this.hls_.options_);
 
     this.decrypter_ = worker(Decrypter);
 

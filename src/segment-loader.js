@@ -141,10 +141,12 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.hls_ = settings.hls;
     this.loaderType_ = settings.loaderType;
 
+    let hlsOptions = this.hls_.options_;
+
     // setup optional parameters
-    this.syncSegmentUseInfiniteWindow_ = this.hls_.options_.syncSegmentUseInfiniteWindow || false;
-    this.syncSegmentUseAlignment_ = this.hls_.options_.syncSegmentUseAlignment || false;
-    this.goalBufferLength_ = this.hls_.options_.goalBufferLength || Config.GOAL_BUFFER_LENGTH;
+    this.syncSegmentUseInfiniteWindow_ = hlsOptions.syncSegmentUseInfiniteWindow || false;
+    this.syncSegmentUseAlignment_ = hlsOptions.syncSegmentUseAlignment || false;
+    this.goalBufferLength_ = hlsOptions.goalBufferLength || Config.GOAL_BUFFER_LENGTH;
 
     // private instance variables
     this.loadedUntil_ = 0;
@@ -181,7 +183,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     // ...for determining the fetch location
     this.fetchAtBuffer_ = false;
 
-    if (settings.debug) {
+    if (hlsOptions.debug) {
       this.logger_ = videojs.log.bind(videojs, 'segment-loader', this.loaderType_, '->');
     }
   }
