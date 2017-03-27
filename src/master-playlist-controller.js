@@ -384,6 +384,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
       let media = this.masterPlaylistLoader_.media();
       let requestTimeout = (this.masterPlaylistLoader_.targetDuration * 1.5) * 1000;
       let activeAudioGroup;
+      let activeVideoGroup;
       let activeTrack;
 
       // If we don't have any more available playlists, we don't want to
@@ -410,7 +411,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.trigger('audioupdate');
       }
 
-      let activeVideoGroup = this.activeVideoGroup();
+      activeVideoGroup = this.activeVideoGroup();
       activeTrack = activeVideoGroup.filter((track) => track.enabled)[0];
       if (!activeTrack) {
         this.setupVideo();
