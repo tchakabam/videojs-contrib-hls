@@ -785,7 +785,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
       this.hls_.trigger('loaded-video-metadata');
 
-      if (!audioPlaylistLoader_) {
+      if (!this.audioPlaylistLoader_) {
         this.hls_.trigger('loaded-audio-metadata');
       }
 
