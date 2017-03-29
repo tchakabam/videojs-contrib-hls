@@ -632,10 +632,16 @@ export class MasterPlaylistController extends videojs.EventTarget {
       }
     }
 
-    // enable the default active track
-    (this.activeVideoGroup().filter((videoTrack) => {
-      return videoTrack.properties_.default;
-    })[0] || this.activeVideoGroup()[0]).enabled = true;
+    // if we have a optional track set, enable that one
+    let optionalTrackIndex = this.hls_.options_.videoTrackIndex;
+    if (optionalTrackIndex !== undefined) {
+      this.activeVideoGroup()[optionalTrackIndex].enabled = true;
+    } else {
+      // otherwise enable the default active track
+      (this.activeVideoGroup().filter((videoTrack) => {
+        return videoTrack.properties_.default;
+      })[0] || this.activeVideoGroup()[0]).enabled = true;
+    }
   }
 
   /**
@@ -679,10 +685,16 @@ export class MasterPlaylistController extends videojs.EventTarget {
       }
     }
 
-    // enable the default active track
-    (this.activeAudioGroup().filter((audioTrack) => {
-      return audioTrack.properties_.default;
-    })[0] || this.activeAudioGroup()[0]).enabled = true;
+    // if we have a optional track set, enable that one
+    let optionalTrackIndex = this.hls_.options_.audioTrackIndex;
+    if (optionalTrackIndex !== undefined) {
+      this.activeAudioGroup()[optionalTrackIndex].enabled = true;
+    } else {
+      // or enable the default active track
+      (this.activeAudioGroup().filter((audioTrack) => {
+        return audioTrack.properties_.default;
+      })[0] || this.activeAudioGroup()[0]).enabled = true;
+    }
   }
 
   /**
