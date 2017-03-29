@@ -782,10 +782,18 @@ export class MasterPlaylistController extends videojs.EventTarget {
       if (!videoPlaylist.endList) {
         this.videoPlaylistLoader_.trigger('firstplay');
       }
+
+      this.hls_.trigger('loaded-video-metadata');
+
+      if (!audioPlaylistLoader_) {
+        this.hls_.trigger('loaded-audio-metadata');
+      }
+
     });
 
     this.videoPlaylistLoader_.on('loadedplaylist', () => {
       let updatedPlaylist;
+
 
       if (this.videoPlaylistLoader_) {
         updatedPlaylist = this.videoPlaylistLoader_.media();
@@ -868,6 +876,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
       if (!audioPlaylist.endList) {
         this.audioPlaylistLoader_.trigger('firstplay');
       }
+
+      this.hls_.trigger('loaded-audio-metadata');
     });
 
     this.audioPlaylistLoader_.on('loadedplaylist', () => {
