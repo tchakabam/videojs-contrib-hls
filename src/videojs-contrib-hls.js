@@ -543,6 +543,8 @@ class HlsHandler extends Component {
     this.masterPlaylistController_.on('selectedinitialmedia', () => {
       // Add the manual rendition mix-in to HlsHandler
       renditionSelectionMixin(this);
+
+      this.trigger('selectedinitialmedia');
     });
 
     this.masterPlaylistController_.on('audioupdate', () => {
