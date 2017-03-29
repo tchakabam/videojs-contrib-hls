@@ -720,8 +720,6 @@ export default class SegmentLoader extends videojs.EventTarget {
       if (segment && segment.end) {
         startOfSegment = segment.end;
       } else {
-        // FIXME !!! (this wouldn't happen with "normal" playlists though)
-        throw new Error('FIXME: need to check here if SourceUpdater has no pending appends in cue');
         startOfSegment = lastBufferedEnd;
         //return null;
       }
