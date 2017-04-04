@@ -244,6 +244,7 @@ const selectPlaylistAdvanced = function() {
   let fallbackIndex = 0;
   let selected;
 
+  // FIXME (options) !!!
   let params = videojs.options.hls.abr || {};
 
   // parameters
