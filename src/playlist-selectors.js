@@ -238,6 +238,7 @@ const selectPlaylistAdvanced = function() {
   let sortedPlaylists = this.playlists.master.playlists.slice();
   let bandwidthPlaylists = [];
   let bandwidthBestVariant;
+  let bandwidthLowestVariant;
   let systemBandwidth = this.systemBandwidth;
   let estimatedBandwidth = systemBandwidth;
   let missingEstimate = false;
@@ -284,9 +285,17 @@ const selectPlaylistAdvanced = function() {
 
   stableSort(sortedPlaylists, comparePlaylistBandwidth);
 
+  bandwidthLowestVariant = sortedPlaylists[0];
+
   // filter out any playlists that have been excluded due to
   // incompatible configurations or playback errors
   sortedPlaylists = sortedPlaylists.filter(Playlist.isEnabled);
+
+  // if all playlists disabled, keep only lowest bandwidth for eventual fallback
+  if (sortedPlaylists.length === 0) {
+    sortedPlaylists.push(bandwidthLowestVariant);
+  }
+
   // filter out any variant that has greater effective bitrate
   // than the current estimated bandwidth
   bandwidthPlaylists = sortedPlaylists.filter(function(elem, index) {
@@ -308,7 +317,7 @@ const selectPlaylistAdvanced = function() {
   // fallback chain of variants
   selected = bandwidthBestVariant || sortedPlaylists[fallbackIndex];
 
-  DEBUG && console.log('SELECTED:', selected.attributes.RESOLUTION.height);
+  console.log('SELECTED:', selected.attributes.RESOLUTION.height, 'id:', this.id());
 
   return selected;
 };
