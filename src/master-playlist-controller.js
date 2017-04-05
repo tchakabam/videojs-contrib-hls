@@ -598,6 +598,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
    * @private
    */
   fillVideoTracks_() {
+
+    console.log('fillVideoTracks_');
+
     let master = this.master();
     let mediaGroups = master.mediaGroups || {};
 
@@ -735,6 +738,17 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
   setupVideo() {
 
+    // if we have an optional track set, enable that one
+    let optionalTrackIndex = this.hls_.options_.videoTrackIndex;
+    if (optionalTrackIndex !== undefined) {
+      this.activeVideoGroup()[optionalTrackIndex].enabled = true;
+    } else {
+      // otherwise enable the default active track
+      (this.activeVideoGroup().filter((videoTrack) => {
+        return videoTrack.properties_.default;
+      })[0] || this.activeVideoGroup()[0]).enabled = true;
+    }
+
     let videoGroup = this.activeVideoGroup();
     let track = videoGroup.filter((videoTrack) => {
       return videoTrack.enabled;
@@ -749,6 +763,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
     }
 
     console.log('Enabling new video track rendition: ' + track.id);
+
+    this.currentVideoTrackId_ = track.id;
 
     this.mainSegmentLoader_.pause();
     this.mainSegmentLoader_.abort();
