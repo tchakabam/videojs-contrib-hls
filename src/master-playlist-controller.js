@@ -225,6 +225,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
     this.audioGroups_ = {};
     this.videoGroups_ = {};
 
+    this.currentVideoTrackId_ = null;
+
     this.mediaSource = new videojs.MediaSource({ mode });
     this.audioInfo_ = null;
     this.videoInfo_ = null;
@@ -288,6 +290,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
    */
   setupMasterPlaylistLoaderListeners_() {
     this.masterPlaylistLoader_.on('loadedmetadata', () => {
+
+      console.log('masterPlaylistLoader loadedmetadata');
+
       let media = this.masterPlaylistLoader_.media();
       let requestTimeout = (this.masterPlaylistLoader_.targetDuration * 1.5) * 1000;
 
@@ -299,19 +304,10 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.requestOptions_.timeout = requestTimeout;
       }
 
-      // if this isn't a live video and preload permits, start
-      // downloading segments
-      if (media.endList && this.tech_.preload() !== 'none') {
-        this.mainSegmentLoader_.playlist(media, this.requestOptions_);
-        this.mainSegmentLoader_.load();
-      }
-
       this.fillVideoTracks_();
-
       this.setupVideo();
 
       this.fillAudioTracks_();
-      
       if (!this.hls_.options_.audioDisabled) {
         this.setupAudio();
       }
@@ -330,6 +326,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
     });
 
     this.masterPlaylistLoader_.on('loadedplaylist', () => {
+
+      console.log('masterPlaylistLoader loadedplaylist');
+
       let updatedPlaylist = this.masterPlaylistLoader_.media();
 
       if (!updatedPlaylist) {
@@ -343,11 +342,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.updateAdCues_(updatedPlaylist);
       }
 
-      // TODO: Create a new event on the PlaylistLoader that signals
-      // that the segments have changed in some way and use that to
-      // update the SegmentLoader instead of doing it twice here and
-      // on `mediachange`
-      this.mainSegmentLoader_.playlist(updatedPlaylist, this.requestOptions_);
       this.updateDuration();
 
       if (!updatedPlaylist.endList) {
@@ -385,6 +379,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
     });
 
     this.masterPlaylistLoader_.on('mediachange', () => {
+
+      console.log('masterPlaylistLoader mediachange');
+
       let media = this.masterPlaylistLoader_.media();
       let requestTimeout = (this.masterPlaylistLoader_.targetDuration * 1.5) * 1000;
       let activeAudioGroup;
@@ -399,13 +396,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.requestOptions_.timeout = requestTimeout;
       }
 
-      // TODO: Create a new event on the PlaylistLoader that signals
-      // that the segments have changed in some way and use that to
-      // update the SegmentLoader instead of doing it twice here and
-      // on `loadedplaylist`
-      this.mainSegmentLoader_.playlist(media, this.requestOptions_);
-      this.mainSegmentLoader_.load();
-
       // if the audio group has changed, a new audio track has to be
       // enabled
       activeAudioGroup = this.activeAudioGroup();
@@ -415,12 +405,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.trigger('audioupdate');
       }
 
-      activeVideoGroup = this.activeVideoGroup();
-      activeTrack = activeVideoGroup.filter((track) => track.enabled)[0];
-      if (!activeTrack) {
-        this.setupVideo();
-        this.trigger('videoupdate');
-      }
+      this.setupVideo();
 
       this.tech_.trigger({
         type: 'mediachange',
@@ -736,18 +721,23 @@ export class MasterPlaylistController extends videojs.EventTarget {
     return result || this.videoGroups_.main;
   }
 
+  enableCurrentVideoTrackId_() {
+    let videoGroup = this.activeVideoGroup();
+
+    // if a video track label from another group has already been set-up previously,
+    // reset it to enabled here in the currently active group
+    // this is needed to make ABR switching work across video groups
+    videoGroup.forEach((videoTrack) => {
+      if (videoTrack.id === this.currentVideoTrackId_) {
+        console.log('Enabling video track id:', videoTrack.id);
+        videoTrack.enabled = true;
+      }
+    });
+  }
+
   setupVideo() {
 
-    // if we have an optional track set, enable that one
-    let optionalTrackIndex = this.hls_.options_.videoTrackIndex;
-    if (optionalTrackIndex !== undefined) {
-      this.activeVideoGroup()[optionalTrackIndex].enabled = true;
-    } else {
-      // otherwise enable the default active track
-      (this.activeVideoGroup().filter((videoTrack) => {
-        return videoTrack.properties_.default;
-      })[0] || this.activeVideoGroup()[0]).enabled = true;
-    }
+    this.enableCurrentVideoTrackId_();
 
     let videoGroup = this.activeVideoGroup();
     let track = videoGroup.filter((videoTrack) => {
@@ -762,7 +752,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
       console.log('Switching to default track enabled');
     }
 
-    console.log('Enabling new video track rendition: ' + track.id);
+    console.log('Setup video track: ' + track.id);
 
     this.currentVideoTrackId_ = track.id;
 
@@ -784,6 +774,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
     this.videoPlaylistLoader_.start();
 
     this.videoPlaylistLoader_.on('loadedmetadata', () => {
+
+      console.log('videoPlaylistLoader loadedmetadata');
+
       let videoPlaylist = this.videoPlaylistLoader_.media();
 
       this.mainSegmentLoader_.playlist(videoPlaylist, this.requestOptions_);
@@ -808,8 +801,10 @@ export class MasterPlaylistController extends videojs.EventTarget {
     });
 
     this.videoPlaylistLoader_.on('loadedplaylist', () => {
-      let updatedPlaylist;
 
+      console.log('videoPlaylistLoader loadedplaylist');
+
+      let updatedPlaylist;
 
       if (this.videoPlaylistLoader_) {
         updatedPlaylist = this.videoPlaylistLoader_.media();

@@ -321,7 +321,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       return;
     }
 
-    this.logger_('loading new playlist: ', newPlaylist.uri, newPlaylist);
+    this.logger_('setting playlist: ', newPlaylist.uri, newPlaylist);
 
     let oldPlaylist = this.playlist_;
     let segmentInfo = this.pendingSegment_;
@@ -575,10 +575,12 @@ export default class SegmentLoader extends videojs.EventTarget {
                                                               // in that case best effort is to assume a quality change
                                                               // since at least there are two different playlists
         || qualitiesDiffer(oldPlaylist.attributes, newPlaylist.attributes))) {
-      let quality = newPlaylist.attributes;
-      this.qualitySwitchesPending_.push(quality);
-      this.logger_('quality switch pending', quality);
-      this.hls_.trigger('qualityswitchpending', quality);
+      let quality = newPlaylist.attributes || null;
+      if (quality) {
+        this.qualitySwitchesPending_.push(quality);
+        this.logger_('quality switch pending', quality);
+        this.hls_.trigger('qualityswitchpending', quality);        
+      }
     }
   }
 
