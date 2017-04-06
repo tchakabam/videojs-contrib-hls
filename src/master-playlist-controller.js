@@ -766,9 +766,11 @@ export class MasterPlaylistController extends videojs.EventTarget {
       this.videoPlaylistLoader_ = null;
     }
 
+    const playlistUri = track.properties_.resolvedUri || this.masterPlaylistLoader_.media().resolvedUri;
+
     // startup playlist and segment loaders for the enabled video
     // track
-    this.videoPlaylistLoader_ = new PlaylistLoader(track.properties_.resolvedUri,
+    this.videoPlaylistLoader_ = new PlaylistLoader(playlistUri,
                                                    this.hls_,
                                                    this.withCredentials);
     this.videoPlaylistLoader_.start();
