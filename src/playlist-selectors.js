@@ -317,7 +317,7 @@ const selectPlaylistAdvanced = function() {
   // fallback chain of variants
   selected = bandwidthBestVariant || sortedPlaylists[fallbackIndex];
 
-  console.log('SELECTED:', selected.attributes.RESOLUTION.height, 'id:', this.id());
+  //console.log('SELECTED:', selected.attributes.RESOLUTION.height, 'id:', this.id());
 
   return selected;
 };

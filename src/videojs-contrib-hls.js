@@ -149,7 +149,7 @@ const stableSort = function(array, sortFn) {
  */
 Hls.STANDARD_PLAYLIST_SELECTOR = function() {
 
-  console.log('STANDARD_PLAYLIST_SELECTOR');
+  //console.log('STANDARD_PLAYLIST_SELECTOR');
 
   let sortedPlaylists = this.playlists.master.playlists.slice();
   let bandwidthPlaylists = [];

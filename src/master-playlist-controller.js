@@ -291,7 +291,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
   setupMasterPlaylistLoaderListeners_() {
     this.masterPlaylistLoader_.on('loadedmetadata', () => {
 
-      console.log('masterPlaylistLoader loadedmetadata');
+      //console.log('masterPlaylistLoader loadedmetadata');
 
       let media = this.masterPlaylistLoader_.media();
       let requestTimeout = (this.masterPlaylistLoader_.targetDuration * 1.5) * 1000;
@@ -327,7 +327,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
     this.masterPlaylistLoader_.on('loadedplaylist', () => {
 
-      console.log('masterPlaylistLoader loadedplaylist');
+      //console.log('masterPlaylistLoader loadedplaylist');
 
       let updatedPlaylist = this.masterPlaylistLoader_.media();
 
@@ -380,7 +380,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
     this.masterPlaylistLoader_.on('mediachange', () => {
 
-      console.log('masterPlaylistLoader mediachange');
+      //console.log('masterPlaylistLoader mediachange');
 
       let media = this.masterPlaylistLoader_.media();
       let requestTimeout = (this.masterPlaylistLoader_.targetDuration * 1.5) * 1000;
@@ -464,8 +464,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
         !objectChanged(this.videoInfo_, event.info)) {
       this.videoInfo_ = event.info;
 
-      console.log('new video info');
-      console.log(this.videoInfo_);
+      //console.log('new video info');
+      //console.log(this.videoInfo_);
 
       return;
     }
@@ -584,7 +584,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
    */
   fillVideoTracks_() {
 
-    console.log('fillVideoTracks_');
+    //console.log('fillVideoTracks_');
 
     let master = this.master();
     let mediaGroups = master.mediaGroups || {};
@@ -729,7 +729,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
     // this is needed to make ABR switching work across video groups
     videoGroup.forEach((videoTrack) => {
       if (videoTrack.id === this.currentVideoTrackId_) {
-        console.log('Enabling video track id:', videoTrack.id);
+        //console.log('Enabling video track id:', videoTrack.id);
         videoTrack.enabled = true;
       }
     });
@@ -749,10 +749,10 @@ export class MasterPlaylistController extends videojs.EventTarget {
         return videoTrack.properties_.default;
       })[0] || videoGroup[0];
       track.enabled = true;
-      console.log('Switching to default track enabled');
+      //console.log('Switching to default track enabled');
     }
 
-    console.log('Setup video track: ' + track.id);
+    //console.log('Setup video track: ' + track.id);
 
     this.currentVideoTrackId_ = track.id;
 
@@ -777,7 +777,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
     this.videoPlaylistLoader_.on('loadedmetadata', () => {
 
-      console.log('videoPlaylistLoader loadedmetadata');
+      //console.log('videoPlaylistLoader loadedmetadata');
 
       let videoPlaylist = this.videoPlaylistLoader_.media();
 
@@ -804,7 +804,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
     this.videoPlaylistLoader_.on('loadedplaylist', () => {
 
-      console.log('videoPlaylistLoader loadedplaylist');
+      //console.log('videoPlaylistLoader loadedplaylist');
 
       let updatedPlaylist;
 

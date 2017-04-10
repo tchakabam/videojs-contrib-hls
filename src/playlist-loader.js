@@ -516,28 +516,6 @@ const PlaylistLoader = function(srcUrl, hls, withCredentials) {
           }
         }
 
-
-        // TODO: make the two for-loops up here one by parameterizing the media group type (AUDIO/VIDEO) (SH)
-
-        /*
-        for (let mediaGroupType in ['AUDIO', 'VIDEO']) {
-          let mediaGroup = loader.master.mediaGroups[mediaGroupType];
-
-          for (let groupKey in mediaGroup) {
-            for (let labelKey in mediaGroup[groupKey]) {
-              let alternateStream = mediaGroup[groupKey][labelKey];
-
-              console.log(labelKey);
-
-              if (alternateStream.uri) {
-                alternateStream.resolvedUri = 
-                  resolveUrl(loader.master.uri, alternateStream.uri);
-              }
-            }
-          }
-        }
-        */
-
         loader.trigger('loadedplaylist');
         if (!request) {
           // no media playlist was specifically selected so start
