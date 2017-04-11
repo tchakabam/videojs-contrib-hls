@@ -953,7 +953,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
  smoothQualityChange_() {
     let media = this.selectPlaylist();
 
-    console.log('smoothQualityChange_', media);
+    //console.log('smoothQualityChange_', media);
 
     if (media !== this.masterPlaylistLoader_.media()) {
       this.masterPlaylistLoader_.media(media);
