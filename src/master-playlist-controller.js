@@ -990,7 +990,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
     // if the viewer has paused and we fell out of the live window,
     // seek forward to the live point
     if (this.tech_.duration() === Infinity) {
-      if (this.tech_.currentTime() < seekable.start(0)) {
+      if (seekable.length && this.tech_.currentTime() < seekable.start(0)) {
         return this.tech_.setCurrentTime(seekable.end(seekable.length - 1));
       }
     }
