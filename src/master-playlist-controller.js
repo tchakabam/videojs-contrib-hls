@@ -819,6 +819,14 @@ export class MasterPlaylistController extends videojs.EventTarget {
         return;
       }
 
+      // patch the playlist with attributes the master media might have
+      // (if this is an alternate rendition it has not been parsed with the default
+      // playlists attribute). This is needed to determine quality-switching events 
+      // and extract current quality.
+      if (!updatedPlaylist.attributes && this.masterPlaylistLoader_.media().attributes) {
+        updatedPlaylist.attributes = this.masterPlaylistLoader_.media().attributes;
+      }
+
       this.mainSegmentLoader_.playlist(updatedPlaylist, this.requestOptions_);
     });
 
@@ -943,8 +951,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
   }
 
  smoothQualityChange_() {
-
     let media = this.selectPlaylist();
+
+    console.log('smoothQualityChange_', media);
 
     if (media !== this.masterPlaylistLoader_.media()) {
       this.masterPlaylistLoader_.media(media);

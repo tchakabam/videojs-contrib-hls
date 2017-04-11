@@ -526,13 +526,15 @@ export default class SegmentLoader extends videojs.EventTarget {
       // give it the 15ms of real-time perception tolerance for the smoothness
       // note: the subsequent event is ought to be triggered in order to allow
       // rescaling of player UI accordingly!
-      if (qs.played = qs.scheduledAt <= currentTime + 0.015) {
+      qs.played = (qs.scheduledAt <= (currentTime + 0.015));
+      if (qs.played) {
         this.logger_('qualityswitchplayed',
           'scheduledAt', qs.scheduledAt,
           'currentTime', currentTime);
         this.hls_.trigger('qualityswitchplayed', {
           scheduledAt: qs.scheduledAt,
-          currentTime: currentTime
+          currentTime: currentTime,
+          info: qs.qualitySwitch
         });
       }
     }, this);
@@ -569,12 +571,11 @@ export default class SegmentLoader extends videojs.EventTarget {
   checkForQualitySwitchEvent_(oldPlaylist, newPlaylist) {
     // first playlist or playlist with new quality attributes (not assumable only by URI diff)
     // enqueue quality switch as pending!
-    if (this.hasPlayed_()
-      && (!oldPlaylist 
+    if (!oldPlaylist 
         || !oldPlaylist.attributes || !newPlaylist.attributes // somehow we dont have attributes information
                                                               // in that case best effort is to assume a quality change
                                                               // since at least there are two different playlists
-        || qualitiesDiffer(oldPlaylist.attributes, newPlaylist.attributes))) {
+        || qualitiesDiffer(oldPlaylist.attributes, newPlaylist.attributes)) {
       let quality = newPlaylist.attributes || null;
       if (quality) {
         this.qualitySwitchesPending_.push(quality);
