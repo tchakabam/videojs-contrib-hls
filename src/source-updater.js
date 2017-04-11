@@ -125,6 +125,11 @@ export default class SourceUpdater {
    */
   remove(start, end) {
     this.queueCallback_(() => {
+      // avoid passing invalid remove ranges in
+      // when player resetting while nothing buffered
+      if (this.buffered().length === 0) {
+        return;
+      }
       this.sourceBuffer_.remove(start, end);
     }, null, true);
   }
