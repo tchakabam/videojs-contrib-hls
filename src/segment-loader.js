@@ -653,12 +653,14 @@ export default class SegmentLoader extends videojs.EventTarget {
 
   bufferInfo() {
     let goalBufferLength = this.goalBufferLength_;
-    let buffered = this.sourceUpdater_.buffered();
+    let buffered = this.sourceUpdater_ ? this.sourceUpdater_.buffered() : {};
     let currentTime = this.currentTime_();
     let loadedUntil = this.loadedUntil_;
     let lastBufferedEnd = 0;
     if (buffered.length) {
       lastBufferedEnd = buffered.end(buffered.length - 1);
+    } else {
+      lastBufferedEnd = 0;
     }
     let bufferedTime = Math.max(0, lastBufferedEnd - currentTime);
     return {bufferedTime, lastBufferedEnd, loadedUntil, currentTime, goalBufferLength}; 
