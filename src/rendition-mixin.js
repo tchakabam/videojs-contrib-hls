@@ -29,7 +29,9 @@ const enableFunction = (loader, playlistUri, changePlaylistFn, enable) => {
 
   if (enable !== currentlyEnabled && !blacklisted) {
     // Ensure the outside world knows about our changes
-    changePlaylistFn();
+    if (changePlaylistFn) {
+      changePlaylistFn();      
+    }
   }
 
   return enable;
@@ -53,8 +55,13 @@ class Representation {
                               .masterPlaylistController_
                               .smoothQualityChange_
                               .bind(hlsHandler.masterPlaylistController_);
+
     // Select transition function for quality switch
     let changeFunc = hlsHandler.options_.smoothQualitySwitch ? smoothChangeFunction : fastChangeFunction; 
+
+    if (hlsHandler.options_.disableImmediateQualityChange) {
+      changeFunc = null;
+    }
 
     // Carefully descend into the playlist's attributes since most
     // properties are optional
