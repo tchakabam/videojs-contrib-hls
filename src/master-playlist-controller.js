@@ -1018,10 +1018,27 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.trigger('firstplay');
 
         // seek to the latest media position for live videos
-        seekable = this.seekable();
-        if (seekable.length) {
-          this.tech_.setCurrentTime(seekable.end(0));
+
+        let playFrom;
+        if (true) {
+          seekable = this.seekable();
+
+          console.log('setupFirstPlay seekable:', seekable);
+
+          if (seekable.length) {
+            //this.tech_.setCurrentTime();
+            //playFrom = (seekable.end(0) - seekable.start(0)) / 2;
+            playFrom = seekable.end(0);
+          } else {
+            playFrom = 0;
+          }     
+        } else {
+          playFrom = 0;
         }
+
+        console.log('setupFirstPlay from:', playFrom);
+
+        this.tech_.setCurrentTime(playFrom);
       }
       this.hasPlayed_ = () => true;
       // now that we are ready, load the segment
