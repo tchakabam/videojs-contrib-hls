@@ -1025,9 +1025,16 @@ export class MasterPlaylistController extends videojs.EventTarget {
         // seek to the latest media position for live videos
         seekable = this.seekable();
 
-        console.log('setupFirstPlay seekable:', seekable);
+        
 
-        if (seekable.length) {
+        if (!isNaN(this.hls_.options_.externalLiveSyncTime)) {
+          let externalLiveSyncTime = this.hls_.options_.externalLiveSyncTime;
+          console.log('externalLiveSyncTime:', externalLiveSyncTime);
+
+          playFrom = externalLiveSyncTime;
+
+        } else if (seekable.length) {
+          console.log('setupFirstPlay seekable:', seekable);
           //this.tech_.setCurrentTime();
           //playFrom = (seekable.end(0) - seekable.start(0)) / 2;
           playFrom = seekable.end(0);
