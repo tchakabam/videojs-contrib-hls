@@ -187,6 +187,30 @@ export const duration = function(playlist, endSequence, expired) {
                           expired);
 };
 
+export const livePointApproximate = function(playlist) {
+  let playFrom = 0;
+  let media = playlist;
+  // check for all conditions united to make a rough guess here.
+  // although we seem to miss an actual sync point technically
+  // this will do for getting "closer" to the live point than
+  // playing from zero...
+  // Akamai (tm) makes 5 segments before pushing any playlist, so let's use that
+  // as a limit here.
+  // HLS standard recommends 3 segments delay.
+  if (media 
+    && media.segments 
+    && media.segments.length && (media.segments.length > 5) 
+    && media.targetDuration) {
+    // Let's assume a 5% error margin on segments target duration. Worst case is that they are shorter
+    // than we would assume and we'd seek out of the available window.
+    // We accept a 5% drift away from live-point here, and case will use the lower bound in case
+    // this turns out to be too low (on short playlists, events just started).
+    // HLS standard recommends 3 segments delay.
+    playFrom = Math.max(3 * media.targetDuration, ((media.segments.length - 5) * (0.95 * media.targetDuration)));
+  }
+  return playFrom;
+}
+
 /**
   * Calculate the time between two indexes in the current playlist
   * neight the start- nor the end-index need to be within the current
@@ -478,6 +502,7 @@ export const isEnabled = function(playlist) {
   return (!playlist.disabled && !blacklisted);
 };
 
+Playlist.livePointApproximate = livePointApproximate;
 Playlist.duration = duration;
 Playlist.seekable = seekable;
 Playlist.getMediaInfoForTime_ = getMediaInfoForTime_;

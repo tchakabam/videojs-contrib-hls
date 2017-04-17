@@ -268,7 +268,7 @@ export default class SyncController extends videojs.EventTarget {
    */
   probeSegmentInfo(segmentInfo) {
     let segment = segmentInfo.segment;
-    let timingInfo;
+    let timingInfo = null;
 
     if (segment.map) {
       timingInfo = this.probeMp4Segment_(segmentInfo);
@@ -281,6 +281,8 @@ export default class SyncController extends videojs.EventTarget {
         this.saveDiscontinuitySyncInfo_(segmentInfo);
       }
     }
+
+    return timingInfo;
   }
 
   /**

@@ -442,6 +442,10 @@ export class MasterPlaylistController extends videojs.EventTarget {
       this.onSyncInfoUpdate_();
     });
 
+    this.mainSegmentLoader_.on('appending-segment', () => {
+      this.trigger('appending-segment');
+    });
+
     this.audioSegmentLoader_.on('syncinfoupdate', () => {
       this.onSyncInfoUpdate_();
     });
@@ -1001,6 +1005,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
    * player and video are loaded and initialized.
    */
   setupFirstPlay() {
+    let playFrom;
     let seekable;
     let media = this.masterPlaylistLoader_.media();
 
@@ -1018,28 +1023,27 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.trigger('firstplay');
 
         // seek to the latest media position for live videos
+        seekable = this.seekable();
 
-        let playFrom;
-        if (true) {
-          seekable = this.seekable();
+        console.log('setupFirstPlay seekable:', seekable);
 
-          console.log('setupFirstPlay seekable:', seekable);
-
-          if (seekable.length) {
-            //this.tech_.setCurrentTime();
-            //playFrom = (seekable.end(0) - seekable.start(0)) / 2;
-            playFrom = seekable.end(0);
-          } else {
-            playFrom = 0;
-          }     
+        if (seekable.length) {
+          //this.tech_.setCurrentTime();
+          //playFrom = (seekable.end(0) - seekable.start(0)) / 2;
+          playFrom = seekable.end(0);
         } else {
           playFrom = 0;
-        }
 
+          let media = this.masterPlaylistLoader_.media();
+          if (media) {
+            playFrom = Hls.Playlist.livePointApproximate(media);
+          }
+        }     
         console.log('setupFirstPlay from:', playFrom);
-
-        this.tech_.setCurrentTime(playFrom);
       }
+      
+      this.tech_.setCurrentTime(playFrom);
+
       this.hasPlayed_ = () => true;
       // now that we are ready, load the segment
       this.load();

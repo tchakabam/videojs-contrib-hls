@@ -156,6 +156,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.currentTimeline_ = -1;
     this.xhr_ = null;
     this.pendingSegment_ = null;
+    this.appendingSegmentInfo_ = null;
     this.mimeType_ = null;
     this.sourceUpdater_ = null;
     this.xhrOptions_ = null;
@@ -978,6 +979,10 @@ export default class SegmentLoader extends videojs.EventTarget {
     return this.pendingSegment_;
   }
 
+  currentSegmentParsedInfo() {
+    return this.appendingSegmentInfo_;
+  }
+
   /**
    * trim the back buffer so we only remove content
    * on segment boundaries
@@ -1216,8 +1221,17 @@ export default class SegmentLoader extends videojs.EventTarget {
 
     let segmentInfo = this.pendingSegment_;
     let segment = segmentInfo.segment;
+    let mediaIndex = this.mediaIndex;
+    let timingInfo = this.syncController_.probeSegmentInfo(segmentInfo);
 
-    this.syncController_.probeSegmentInfo(segmentInfo);
+    this.appendingSegmentInfo_ = {
+      timingInfo,
+      segmentInfo,
+      mediaIndex,
+      mediaSequence: this.playlist_.mediaSequence
+    };
+
+    this.trigger('appending-segment');
 
     if (segmentInfo.isSyncRequest) {
       this.trigger('syncinfoupdate');
