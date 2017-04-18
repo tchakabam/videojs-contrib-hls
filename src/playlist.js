@@ -188,6 +188,9 @@ export const duration = function(playlist, endSequence, expired) {
 };
 
 export const livePointApproximate = function(playlist) {
+
+  const LIVE_POINT_MARGIN_SEGMENTS = 180;
+
   let playFrom = 0;
   let media = playlist;
   // check for all conditions united to make a rough guess here.
@@ -199,14 +202,14 @@ export const livePointApproximate = function(playlist) {
   // HLS standard recommends 3 segments delay.
   if (media 
     && media.segments 
-    && media.segments.length && (media.segments.length > 5) 
+    && media.segments.length && (media.segments.length > LIVE_POINT_MARGIN_SEGMENTS) 
     && media.targetDuration) {
     // Let's assume a 5% error margin on segments target duration. Worst case is that they are shorter
     // than we would assume and we'd seek out of the available window.
     // We accept a 5% drift away from live-point here, and case will use the lower bound in case
     // this turns out to be too low (on short playlists, events just started).
     // HLS standard recommends 3 segments delay.
-    playFrom = Math.max(3 * media.targetDuration, ((media.segments.length - 5) * (0.95 * media.targetDuration)));
+    playFrom = Math.max(0, ((media.segments.length - LIVE_POINT_MARGIN_SEGMENTS) * media.targetDuration));
   }
   return playFrom;
 }
