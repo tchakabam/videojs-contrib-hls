@@ -886,7 +886,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       segmentInfo);
 
     removeToTime = this.trimBuffer_();
-    if (removeToTime > 0) {
+    if (this.currentTime_() <= segmentInfo.startOfSegment && removeToTime > 0) {
       this.logger_('triming up to', removeToTime, 'from buffer');
       this.remove(0, removeToTime);
     }
