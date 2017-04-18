@@ -266,7 +266,7 @@ export default class SyncController extends videojs.EventTarget {
    *
    * @param {SegmentInfo} segmentInfo - The current active request information
    */
-  probeSegmentInfo(segmentInfo) {
+  probeSegmentInfo(segmentInfo, update = false) {
     let segment = segmentInfo.segment;
     let timingInfo = null;
 
@@ -276,7 +276,7 @@ export default class SyncController extends videojs.EventTarget {
       timingInfo = this.probeTsSegment_(segmentInfo);
     }
 
-    if (timingInfo) {
+    if (timingInfo && update) {
       if (this.calculateSegmentTimeMapping_(segmentInfo, timingInfo)) {
         this.saveDiscontinuitySyncInfo_(segmentInfo);
       }
