@@ -1294,10 +1294,9 @@ export default class SegmentLoader extends videojs.EventTarget {
     let segment = segmentInfo.segment;
     let isWalkingForward = this.mediaIndex !== null;
 
-    this.logger_('appended up to:', segment.end);
-    if (segment.end) {
-      this.loadedUntil_ = segment.end;
-    }
+    let loadedUntil = segmentInfo.startOfSegment + segmentInfo.duration;
+    this.logger_('appended up to:', loadedUntil);
+    this.loadedUntil_ = loadedUntil;
 
     // first lets update eventually the switch history
     // if we appended the segment to the buffer at the switch point
