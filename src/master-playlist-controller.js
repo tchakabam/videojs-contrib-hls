@@ -1035,16 +1035,12 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
         } else if (seekable.length) {
           console.log('setupFirstPlay seekable:', seekable);
-          //this.tech_.setCurrentTime();
-          //playFrom = (seekable.end(0) - seekable.start(0)) / 2;
           playFrom = seekable.end(0);
         } else {
-          playFrom = 0;
 
-          let media = this.masterPlaylistLoader_.media();
-          if (media) {
-            playFrom = Hls.Playlist.livePointApproximate(media);
-          }
+          playFrom = Hls.Playlist.livePointApproximate(media);
+
+          //playFrom = 0;
         }     
         console.log('setupFirstPlay from:', playFrom);
       }
