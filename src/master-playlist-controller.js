@@ -1005,7 +1005,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
    * player and video are loaded and initialized.
    */
   setupFirstPlay() {
-    let playFrom;
+    let playFrom = 0;
     let seekable;
     let media = this.masterPlaylistLoader_.media();
 
