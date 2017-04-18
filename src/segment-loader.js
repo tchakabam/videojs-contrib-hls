@@ -723,11 +723,10 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.logger_('walkForward', 'mediaIndex:', mediaIndex + 1);
       let segment = playlist.segments[mediaIndex];
 
-      if (segment && segment.end) {
+      if (segment && segment.end && segment.end <= lastBufferedEnd) {
         startOfSegment = segment.end;
       } else {
         startOfSegment = lastBufferedEnd;
-        //return null;
       }
 
       // limit downloading independently of SourceBuffer content
