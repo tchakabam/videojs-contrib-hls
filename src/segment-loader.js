@@ -12,7 +12,7 @@ import {cacheInstance as segmentCache} from './cache';
 // should be < 1 -> otherwise we'll remove from current playhead
 const BACK_BUFFER_TO_PRE_BUFFER_RATIO = 0.2;
 // in seconds, should always be less than SourceBuffer max capacity
-const BACK_BUFFER_TRIM_TIME = SourceUpdater.MAX_BUFFERED_SECONDS * BACK_BUFFER_TO_PRE_BUFFER_RATIO; 
+const BACK_BUFFER_TRIM_TIME = SourceUpdater.MAX_BUFFERED_SECONDS * BACK_BUFFER_TO_PRE_BUFFER_RATIO;
 // in ms
 const CHECK_BUFFER_DELAY = 500;
 
@@ -504,6 +504,10 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @private
    */
   monitorBufferTick_() {
+    if(this.state === 'DISPOSED'){
+      return;
+    }
+
     this.checkForQualitySwitchPlayed_();
 
     if (this.state === 'READY') {
@@ -572,7 +576,7 @@ export default class SegmentLoader extends videojs.EventTarget {
   checkForQualitySwitchEvent_(oldPlaylist, newPlaylist) {
     // first playlist or playlist with new quality attributes (not assumable only by URI diff)
     // enqueue quality switch as pending!
-    if (!oldPlaylist 
+    if (!oldPlaylist
         || !oldPlaylist.attributes || !newPlaylist.attributes // somehow we dont have attributes information
                                                               // in that case best effort is to assume a quality change
                                                               // since at least there are two different playlists
@@ -581,7 +585,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       if (quality) {
         this.qualitySwitchesPending_.push(quality);
         this.logger_('quality switch pending', quality);
-        this.hls_.trigger('qualityswitchpending', quality);        
+        this.hls_.trigger('qualityswitchpending', quality);
       }
     }
   }
@@ -664,7 +668,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       lastBufferedEnd = 0;
     }
     let bufferedTime = Math.max(0, lastBufferedEnd - currentTime);
-    return {bufferedTime, lastBufferedEnd, loadedUntil, currentTime, goalBufferLength}; 
+    return {bufferedTime, lastBufferedEnd, loadedUntil, currentTime, goalBufferLength};
   }
 
   /**
@@ -807,7 +811,7 @@ export default class SegmentLoader extends videojs.EventTarget {
         // mediaIndex value from the previous playlist
         return this.mediaIndexBeforeResync_;
       } else if (this.syncSegmentUseInfiniteWindow_) { // also this will only be done if using alignment is disabled
-                                                       // or if the mediaIndexBeforeResync was not set 
+                                                       // or if the mediaIndexBeforeResync was not set
         this.logger_('Assuming infinte DVR window for sync segment candidate');
         // in this case will choose the second (or only) segment of the playlist (from the start)
         // this assumes that the DVR live window is infinite and that we can actually fetch
