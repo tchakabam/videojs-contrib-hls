@@ -30,29 +30,13 @@
     <p>Due to security restrictions in Flash, you will have to load this page over HTTP(S) to see the example in action.</p>
   </div>
   <video id="videojs-contrib-hls-player" class="video-js vjs-default-skin" controls>
-    <source src="" type="application/x-mpegURL">
+    <source src="https://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/bipbop_16x9_variant.m3u8" type="application/x-mpegURL">
   </video>
-
-  <p>
-    Buffer preloading progress:
-    <progress id="buffer-progress" value="0" max="100"></progress>
-    <br>
-    Buffer level:
-    <progress id="buffer-level" value="0" max="100"></progress>
-    <br>Time: <span id=current-time></span>
-    <br>Buffer: <span id=current-buffer></span>
-  </p>
-
-  <button onclick="enableVideoTrack(0)">Camera 1</button>
-  <button onclick="enableVideoTrack(1)">Camera 2</button>
-  <button onclick="enableVideoTrack(2)">Camera 3</button>
-  <button onclick="enableVideoTrack(3)">Camera 4</button>
 
   <form id=load-url>
     <label>
       Video URL:
-      <!--<input id=url type=url value="http://localhost:9999/media/alt-video/master-playlist.m3u8">-->
-      <input id=url type=url value="https://ingest2.genf2017.compuccino.tv/vod/smil:naias2017ar2.smil/playlist.m3u8">
+      <input id=url type=url value="https://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/bipbop_16x9_variant.m3u8">
     </label>
     <button type=submit>Load</button>
   </form>
@@ -66,128 +50,20 @@
   <script src="/dist/videojs-contrib-hls.js"></script>
   <script>
     (function(window, videojs) {
+      var player = window.player = videojs('videojs-contrib-hls-player');
 
-      var hls;
-      var time = document.querySelector('#current-time');
-      var buffer = document.querySelector('#current-buffer');
-      var progress = document.querySelector('#buffer-progress');
-      var bufferLevel = document.querySelector('#buffer-level');
-      var url = document.querySelector('#url').value;
-      document.querySelector('video source').src = url;
-
-      // create player
-      var player = window.player = videojs('videojs-contrib-hls-player', {
-        html5: {
-          debug: true,
-          hls: {
-            debug: true,
-            smoothQualitySwitch: true,
-            goalBufferLength: 60,
-            audioDisabled: false
-          }    
-        }
-      });
-
-      player.volume(0);
-
-      player.on('mediachange', function(e, data) {
-        console.log('mediachange', data);
-      });
-
-      time.innerHTML = player.currentTime();
-
-      var currentResolution = 360;
-
-      player.on('loadstart', function() {
-
-        console.log('starting HLS client');
-        
-        hls = window.hls = player.tech_.hls;
-
-        hls.selectPlaylist = videojs.Hls.PlaylistSelectors['ADVANCED'];
-
-        hls.on('qualityswitchpending', function(e, data) {
-          console.log('qualityswitchpending', data);
-        });
-
-        hls.on('qualityswitchbuffered', function(e, data) {
-          console.log('qualityswitchbuffered', data);
-        });
-        hls.on('qualityswitchplayed', function(e, data) {
-
-          currentResolution = hls.qualitySwitchHistory().filter(function(qs) {
-            return qs.played;
-          }).pop().qualitySwitch['RESOLUTION'].height;
-
-          console.log('currentResolution', currentResolution);
-        });
-      });
-
-      player.on('loadedmetadata', function() {
-        console.log('loadedmetadata');
-        //enableAllQualities();
-      });
-
-      player.on('progress', function(e) {
-        if (hls.pendingSegmentInfo()) {
-          var progressInfo = {
-            loaded: hls.pendingSegmentInfo().loaded,
-            total: hls.pendingSegmentInfo().total
-          };
-          progress.value = progressInfo.loaded;
-          progress.max = progressInfo.total;
-        }
-      });
-
-      player.on('timeupdate', function() {
-        let {bufferedTime, goalBufferLength} = hls.bufferInfo();
-        time.innerHTML = player.currentTime();
-        buffer.innerHTML = bufferedTime + ' of ' + goalBufferLength;
-        bufferLevel.value = bufferedTime;
-        bufferLevel.max = 60 || goalBufferLength;
-      });
-
+      // hook up the video switcher
       var loadUrl = document.getElementById('load-url');
+      var url = document.getElementById('url');
       loadUrl.addEventListener('submit', function(event) {
         event.preventDefault();
         player.src({
-          src: url,
+          src: url.value,
           type: 'application/x-mpegURL'
         });
         return false;
       });
-
     }(window, window.videojs));
-
-    function enableAllQualities() {
-      console.log('enableAllQualities');
-      hls.representations().forEach(function(rep) {
-        rep.enabled(true);
-      });  
-    }
-
-    function setQuality(pixelHeight) {
-      // better proceed in two steps:
-      // that way we will never have a state 
-      // where no representation is enabled 
-      // (which yields an undertmined fallback, which isn't what
-      //  is expected of this function)
-      hls.representations().forEach(function(rep) {
-        if(rep.height === pixelHeight){
-          rep.enabled(true);
-        }
-      });
-      hls.representations().forEach(function(rep) {
-        if(rep.height !== pixelHeight){
-          rep.enabled(false);
-        }
-      });
-    }
-
-    function enableVideoTrack(index) {
-      hls.enableVideoTrack(index);
-    }
-
   </script>
 </body>
 </html>
