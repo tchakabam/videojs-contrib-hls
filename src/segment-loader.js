@@ -348,7 +348,7 @@ export default class SegmentLoader extends videojs.EventTarget {
 
     // we reloaded the same playlist so we are in a live scenario
     // and we will likely need to adjust the mediaIndex
-    let mediaSequenceDiff = newPlaylist.mediaSequence - oldPlaylist.mediaSequence;
+    let mediaSequenceDiff = Math.min(newPlaylist.mediaSequence - oldPlaylist.mediaSequence, (oldPlaylist.segments.length - 1));
 
     this.logger_('mediaSequenceDiff', mediaSequenceDiff);
 
