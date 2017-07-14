@@ -136,7 +136,7 @@ export const syncPointStrategies = [
 ];
 
 export default class SyncController extends videojs.EventTarget {
-  constructor() {
+  constructor(hlsOptions) {
     super();
     // Segment Loader state variables...
     // ...for synching across variants
@@ -147,7 +147,7 @@ export default class SyncController extends videojs.EventTarget {
     this.discontinuities = [];
     this.datetimeToDisplayTime = null;
 
-    if (videojs.options.hls && videojs.options.hls.debug) {
+    if (hlsOptions.debug) {
       this.logger_ = videojs.log.bind(videojs, 'sync-controller ->');
     }
   }
@@ -357,9 +357,9 @@ export default class SyncController extends videojs.EventTarget {
    *
    * @param {SegmentInfo} segmentInfo - The current active request information
    */
-  probeSegmentInfo(segmentInfo) {
+  probeSegmentInfo(segmentInfo, update = false) {
     let segment = segmentInfo.segment;
-    let timingInfo;
+    let timingInfo = null;
 
     if (segment.map) {
       timingInfo = this.probeMp4Segment_(segmentInfo);
@@ -367,11 +367,13 @@ export default class SyncController extends videojs.EventTarget {
       timingInfo = this.probeTsSegment_(segmentInfo);
     }
 
-    if (timingInfo) {
+    if (timingInfo && update) {
       if (this.calculateSegmentTimeMapping_(segmentInfo, timingInfo)) {
         this.saveDiscontinuitySyncInfo_(segmentInfo);
       }
     }
+
+    return timingInfo;
   }
 
   /**

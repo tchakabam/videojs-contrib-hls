@@ -187,6 +187,19 @@ export const duration = function(playlist, endSequence, expired) {
                           expired);
 };
 
+export const livePointApproximate = function(playlist) {
+
+  const LIVE_POINT_MARGIN_SECONDS = 120;
+
+  const duration = intervalDuration(playlist, playlist.mediaSequence + playlist.segments.length, 0);
+
+  console.log('playlist duration:', duration);
+
+  let playFrom = Math.max(0, duration - LIVE_POINT_MARGIN_SECONDS);
+
+  return playFrom;
+}
+
 /**
   * Calculate the time between two indexes in the current playlist
   * neight the start- nor the end-index need to be within the current
@@ -407,6 +420,7 @@ export const isEnabled = function(playlist) {
   return (!playlist.disabled && !blacklisted);
 };
 
+Playlist.livePointApproximate = livePointApproximate;
 Playlist.duration = duration;
 Playlist.seekable = seekable;
 Playlist.getMediaInfoForTime_ = getMediaInfoForTime_;

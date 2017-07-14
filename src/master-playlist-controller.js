@@ -308,11 +308,12 @@ export class MasterPlaylistController extends videojs.EventTarget {
     };
 
     this.audioGroups_ = {};
-    this.subtitleGroups_ = { groups: {}, tracks: {} };
 
     this.mediaSource = new videojs.MediaSource({ mode });
-    this.audioinfo_ = null;
+    this.audioInfo_ = null;
+    this.videoInfo_ = null;
     this.mediaSource.on('audioinfo', this.handleAudioinfoUpdate_.bind(this));
+    this.mediaSource.on('videoinfo', this.handleVideoinfoUpdate_.bind(this));
 
     // load the media source into the player
     this.mediaSource.addEventListener('sourceopen', this.handleSourceOpen_.bind(this));
@@ -320,7 +321,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
     this.seekable_ = videojs.createTimeRanges();
     this.hasPlayed_ = () => false;
 
-    this.syncController_ = new SyncController();
+    this.syncController_ = new SyncController(this.hls_.options_);
     this.segmentMetadataTrack_ = tech.addRemoteTextTrack({
       kind: 'metadata',
       label: 'segment-metadata'
@@ -381,6 +382,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
    */
   setupMasterPlaylistLoaderListeners_() {
     this.masterPlaylistLoader_.on('loadedmetadata', () => {
+
+      //console.log('masterPlaylistLoader loadedmetadata');
+
       let media = this.masterPlaylistLoader_.media();
       let requestTimeout = (this.masterPlaylistLoader_.targetDuration * 1.5) * 1000;
 
@@ -392,15 +396,13 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.requestOptions_.timeout = requestTimeout;
       }
 
-      // if this isn't a live video and preload permits, start
-      // downloading segments
-      if (media.endList && this.tech_.preload() !== 'none') {
-        this.mainSegmentLoader_.playlist(media, this.requestOptions_);
-        this.mainSegmentLoader_.load();
-      }
+      this.fillVideoTracks_();
+      this.setupVideo();
 
       this.fillAudioTracks_();
-      this.setupAudio();
+      if (!this.hls_.options_.audioDisabled) {
+        this.setupAudio();
+      }
 
       this.fillSubtitleTracks_();
       this.setupSubtitles();
@@ -414,10 +416,14 @@ export class MasterPlaylistController extends videojs.EventTarget {
       this.setupFirstPlay();
 
       this.trigger('audioupdate');
+      this.trigger('videoupdate');
       this.trigger('selectedinitialmedia');
     });
 
     this.masterPlaylistLoader_.on('loadedplaylist', () => {
+
+      //console.log('masterPlaylistLoader loadedplaylist');
+
       let updatedPlaylist = this.masterPlaylistLoader_.media();
 
       if (!updatedPlaylist) {
@@ -431,11 +437,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.updateAdCues_(updatedPlaylist);
       }
 
-      // TODO: Create a new event on the PlaylistLoader that signals
-      // that the segments have changed in some way and use that to
-      // update the SegmentLoader instead of doing it twice here and
-      // on `mediachange`
-      this.mainSegmentLoader_.playlist(updatedPlaylist, this.requestOptions_);
       this.updateDuration();
 
       // If the player isn't paused, ensure that the segment loader is running,
@@ -480,9 +481,13 @@ export class MasterPlaylistController extends videojs.EventTarget {
     });
 
     this.masterPlaylistLoader_.on('mediachange', () => {
+
+      //console.log('masterPlaylistLoader mediachange');
+
       let media = this.masterPlaylistLoader_.media();
       let requestTimeout = (this.masterPlaylistLoader_.targetDuration * 1.5) * 1000;
       let activeAudioGroup;
+      let activeVideoGroup;
       let activeTrack;
 
       // If we don't have any more available playlists, we don't want to
@@ -493,13 +498,6 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.requestOptions_.timeout = requestTimeout;
       }
 
-      // TODO: Create a new event on the PlaylistLoader that signals
-      // that the segments have changed in some way and use that to
-      // update the SegmentLoader instead of doing it twice here and
-      // on `loadedplaylist`
-      this.mainSegmentLoader_.playlist(media, this.requestOptions_);
-      this.mainSegmentLoader_.load();
-
       // if the audio group has changed, a new audio track has to be
       // enabled
       activeAudioGroup = this.activeAudioGroup();
@@ -509,6 +507,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.trigger('audioupdate');
       }
       this.setupSubtitles();
+
+      this.setupVideo();
 
       this.tech_.trigger({
         type: 'mediachange',
@@ -541,14 +541,18 @@ export class MasterPlaylistController extends videojs.EventTarget {
    * @private
    */
   setupSegmentLoaderListeners_() {
+
+    // TODO: progress info from *all* loaders (especially alternate video) should
+    //       be taken into account for correct ABR switching! (SH)
     this.mainSegmentLoader_.on('bandwidthupdate', () => {
+      this.trigger('progress');
+    });
+
+    this.mainSegmentLoader_.on('abr-update', () => {
       // figure out what stream the next segment should be downloaded from
       // with the updated bandwidth information
       this.masterPlaylistLoader_.media(this.selectPlaylist());
       this.tech_.trigger('bandwidthupdate');
-    });
-    this.mainSegmentLoader_.on('progress', () => {
-      this.trigger('progress');
     });
 
     this.mainSegmentLoader_.on('error', () => {
@@ -557,6 +561,10 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
     this.mainSegmentLoader_.on('syncinfoupdate', () => {
       this.onSyncInfoUpdate_();
+    });
+
+    this.mainSegmentLoader_.on('appending-segment', () => {
+      this.trigger('appending-segment');
     });
 
     this.audioSegmentLoader_.on('syncinfoupdate', () => {
@@ -574,7 +582,46 @@ export class MasterPlaylistController extends videojs.EventTarget {
     this.subtitleSegmentLoader_.on('error', this.handleSubtitleError_.bind(this));
   }
 
+  handleVideoinfoUpdate_(event) {
+
+    // FIXME: we need to have Hls.supportsVideoInfoChange_() as well or see if these overlap with
+    //        audio switching caps (SH)
+    if (Hls.supportsAudioInfoChange_() ||
+        !this.videoInfo_ ||
+        !objectChanged(this.videoInfo_, event.info)) {
+      this.videoInfo_ = event.info;
+
+      //console.log('new video info');
+      //console.log(this.videoInfo_);
+
+      return;
+    }
+
+    let enabledIndex =
+        this.activeVideoGroup()
+          .map((track) => track.enabled)
+          .indexOf(true);
+    let enabledTrack = this.activeVideoGroup()[enabledIndex];
+    let defaultTrack = this.activeVideoGroup().filter((track) => {
+      return track.properties_ && track.properties_.default;
+    })[0];
+
+    // FIXME: be more specific here with failure cases and reasons here!
+    //        switching codec might be a problem, but if its just codec parameters that might be totally fine.
+    let error = `The video track '${enabledTrack.label}' that we tried to ` +
+      `switch to had different video codec properties. This might cause issues with decoding.`
+      + `Falling back to the default track now.`;
+    defaultTrack.enabled = true;
+    this.activeVideoGroup().splice(enabledIndex, 1);
+    this.trigger('videoupdate');
+
+    videojs.log.warn(error);
+    
+    this.setupvideo();
+  }
+
   handleAudioinfoUpdate_(event) {
+    
     if (Hls.supportsAudioInfoChange_() ||
         !this.audioInfo_ ||
         !objectChanged(this.audioInfo_, event.info)) {
@@ -621,6 +668,63 @@ export class MasterPlaylistController extends videojs.EventTarget {
                     this.mainSegmentLoader_.mediaSecondsLoaded);
   }
 
+
+  /**
+   * fill our internal list of HlsVideoTracks with data from
+   * the master playlist or use a default
+   *
+   * @private
+   */
+  fillVideoTracks_() {
+
+    //console.log('fillVideoTracks_');
+
+    let master = this.master();
+    let mediaGroups = master.mediaGroups || {};
+
+    // force a default if we have none or we are not
+    // in html5 mode (the only mode to support more than one
+    // audio track)
+    if (!mediaGroups ||
+        !mediaGroups.VIDEO ||
+        Object.keys(mediaGroups.VIDEO).length === 0 ||
+        this.mode_ !== 'html5') {
+      // "main" audio group, track name "default"
+      mediaGroups.VIDEO = { main: { default: { default: true }}};
+    }
+
+    for (let mediaGroup in mediaGroups.VIDEO) {
+      if (!this.videoGroups_[mediaGroup]) {
+        this.videoGroups_[mediaGroup] = [];
+      }
+
+      for (let label in mediaGroups.VIDEO[mediaGroup]) {
+        let properties = mediaGroups.VIDEO[mediaGroup][label];
+        let track = new videojs.VideoTrack({
+          id: label,
+          kind: properties.default ? 'main' : 'alternative',
+          enabled: false,
+          language: properties.language,
+          label
+        });
+
+        track.properties_ = properties;
+        this.videoGroups_[mediaGroup].push(track);
+      }
+    }
+
+    // if we have a optional track set, enable that one
+    let optionalTrackIndex = this.hls_.options_.videoTrackIndex;
+    if (optionalTrackIndex !== undefined) {
+      this.activeVideoGroup()[optionalTrackIndex].enabled = true;
+    } else {
+      // otherwise enable the default active track
+      (this.activeVideoGroup().filter((videoTrack) => {
+        return videoTrack.properties_.default;
+      })[0] || this.activeVideoGroup()[0]).enabled = true;
+    }
+  }
+
   /**
    * fill our internal list of HlsAudioTracks with data from
    * the master playlist or use a default
@@ -662,10 +766,16 @@ export class MasterPlaylistController extends videojs.EventTarget {
       }
     }
 
-    // enable the default active track
-    (this.activeAudioGroup().filter((audioTrack) => {
-      return audioTrack.properties_.default;
-    })[0] || this.activeAudioGroup()[0]).enabled = true;
+    // if we have a optional track set, enable that one
+    let optionalTrackIndex = this.hls_.options_.audioTrackIndex;
+    if (optionalTrackIndex !== undefined) {
+      this.activeAudioGroup()[optionalTrackIndex].enabled = true;
+    } else {
+      // or enable the default active track
+      (this.activeAudioGroup().filter((audioTrack) => {
+        return audioTrack.properties_.default;
+      })[0] || this.activeAudioGroup()[0]).enabled = true;
+    }
   }
 
   /**
@@ -750,6 +860,136 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
     return result || this.audioGroups_.main;
   }
+
+  activeVideoGroup() {
+    let videoPlaylist = this.masterPlaylistLoader_.media();
+    let result;
+
+    if (videoPlaylist.attributes && videoPlaylist.attributes.VIDEO) {
+      result = this.videoGroups_[videoPlaylist.attributes.VIDEO];
+    }
+
+    return result || this.videoGroups_.main;
+  }
+
+  enableCurrentVideoTrackId_() {
+    let videoGroup = this.activeVideoGroup();
+
+    // if a video track label from another group has already been set-up previously,
+    // reset it to enabled here in the currently active group
+    // this is needed to make ABR switching work across video groups
+    videoGroup.forEach((videoTrack) => {
+      if (videoTrack.id === this.currentVideoTrackId_) {
+        //console.log('Enabling video track id:', videoTrack.id);
+        videoTrack.enabled = true;
+      }
+    });
+  }
+
+  setupVideo() {
+
+    this.enableCurrentVideoTrackId_();
+
+    let videoGroup = this.activeVideoGroup();
+    let track = videoGroup.filter((videoTrack) => {
+      return videoTrack.enabled;
+    })[0];
+
+    if (!track) {
+      track = videoGroup.filter((videoTrack) => {
+        return videoTrack.properties_.default;
+      })[0] || videoGroup[0];
+      track.enabled = true;
+      //console.log('Switching to default track enabled');
+    }
+
+    //console.log('Setup video track: ' + track.id);
+
+    this.currentVideoTrackId_ = track.id;
+
+    this.mainSegmentLoader_.pause();
+    this.mainSegmentLoader_.abort();
+    this.mainSegmentLoader_.resetEverything();
+
+    // stop playlist and segment loading for video
+    if (this.videoPlaylistLoader_) {
+      this.videoPlaylistLoader_.dispose();
+      this.videoPlaylistLoader_ = null;
+    }
+
+    const playlistUri = track.properties_.resolvedUri || this.masterPlaylistLoader_.media().resolvedUri;
+
+    // startup playlist and segment loaders for the enabled video
+    // track
+    this.videoPlaylistLoader_ = new PlaylistLoader(playlistUri,
+                                                   this.hls_,
+                                                   this.withCredentials);
+    this.videoPlaylistLoader_.start();
+
+    this.videoPlaylistLoader_.on('loadedmetadata', () => {
+
+      //console.log('videoPlaylistLoader loadedmetadata');
+
+      let videoPlaylist = this.videoPlaylistLoader_.media();
+
+      this.mainSegmentLoader_.playlist(videoPlaylist, this.requestOptions_);
+
+      // if the video is already playing, or if this isn't a live video and preload
+      // permits, start downloading segments
+      if (!this.tech_.paused() ||
+          (videoPlaylist.endList && this.tech_.preload() !== 'none')) {
+        this.mainSegmentLoader_.load();
+      }
+
+      if (!videoPlaylist.endList) {
+        this.videoPlaylistLoader_.trigger('firstplay');
+      }
+
+      this.hls_.trigger('loaded-video-metadata');
+
+      if (!this.audioPlaylistLoader_) {
+        this.hls_.trigger('loaded-audio-metadata');
+      }
+
+    });
+
+    this.videoPlaylistLoader_.on('loadedplaylist', () => {
+
+      //console.log('videoPlaylistLoader loadedplaylist');
+
+      let updatedPlaylist;
+
+      if (this.videoPlaylistLoader_) {
+        updatedPlaylist = this.videoPlaylistLoader_.media();
+      }
+
+      if (!updatedPlaylist) {
+        // only one playlist to select
+        this.videoPlaylistLoader_.media(
+          this.videoPlaylistLoader_.playlists.master.playlists[0]);
+        return;
+      }
+
+      // patch the playlist with attributes the master media might have
+      // (if this is an alternate rendition it has not been parsed with the default
+      // playlists attribute). This is needed to determine quality-switching events 
+      // and extract current quality.
+      if (!updatedPlaylist.attributes && this.masterPlaylistLoader_.media().attributes) {
+        updatedPlaylist.attributes = this.masterPlaylistLoader_.media().attributes;
+      }
+
+      this.mainSegmentLoader_.playlist(updatedPlaylist, this.requestOptions_);
+    });
+
+    this.videoPlaylistLoader_.on('error', () => {
+      videojs.log.warn('Problem encountered loading the alternate video track' +
+                       '. Switching back to default.');
+      this.setupVideo();
+    });
+  }
+
+  // TODO: we can probably fuse setupAudio/Video and fillAudio/Video... but lets be redundant right now
+  //       until we figured out all the caveats.
 
   /**
    * Returns the subtitle group for the currently active primary
@@ -852,6 +1092,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
       if (!audioPlaylist.endList) {
         this.audioPlaylistLoader_.trigger('firstplay');
       }
+
+      this.hls_.trigger('loaded-audio-metadata');
     });
 
     this.audioPlaylistLoader_.on('loadedplaylist', () => {
@@ -975,6 +1217,9 @@ export class MasterPlaylistController extends videojs.EventTarget {
    * @private
    */
   fastQualityChange_() {
+
+    videojs.log.warn('Fast quality switch!');
+
     let media = this.selectPlaylist();
 
     if (media !== this.masterPlaylistLoader_.media()) {
@@ -983,6 +1228,25 @@ export class MasterPlaylistController extends videojs.EventTarget {
       this.mainSegmentLoader_.resetLoader();
       // don't need to reset audio as it is reset when media changes
     }
+  }
+
+ smoothQualityChange_() {
+    let media = this.selectPlaylist();
+
+    //console.log('smoothQualityChange_', media);
+
+    if (media !== this.masterPlaylistLoader_.media()) {
+      this.masterPlaylistLoader_.media(media);
+    }
+  }
+
+
+  /**
+   * Wraps SegmentLoader.qualitySwitchHistory for mainSegmentLoader
+   * @returns {Array} Main quality switch history
+   */
+  qualitySwitchHistory() {
+    return this.mainSegmentLoader_.qualitySwitchHistory();
   }
 
   /**
@@ -1006,7 +1270,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
     // if the viewer has paused and we fell out of the live window,
     // seek forward to the live point
     if (this.tech_.duration() === Infinity) {
-      if (this.tech_.currentTime() < seekable.start(0)) {
+      if (seekable.length && this.tech_.currentTime() < seekable.start(0)) {
         return this.tech_.setCurrentTime(seekable.end(seekable.length - 1));
       }
     }
@@ -1017,6 +1281,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
    * player and video are loaded and initialized.
    */
   setupFirstPlay() {
+    let playFrom = 0;
     let seekable;
     let media = this.masterPlaylistLoader_.media();
 
@@ -1035,10 +1300,29 @@ export class MasterPlaylistController extends videojs.EventTarget {
 
         // seek to the latest media position for live videos
         seekable = this.seekable();
-        if (seekable.length) {
-          this.tech_.setCurrentTime(seekable.end(0));
-        }
+
+        
+
+        if (!isNaN(this.hls_.options_.externalLiveSyncTime)) {
+          let externalLiveSyncTime = this.hls_.options_.externalLiveSyncTime;
+          console.log('externalLiveSyncTime:', externalLiveSyncTime);
+
+          playFrom = externalLiveSyncTime;
+
+        } else if (seekable.length) {
+          console.log('setupFirstPlay seekable:', seekable);
+          playFrom = seekable.end(0);
+        } else {
+
+          playFrom = Hls.Playlist.livePointApproximate(media);
+
+          //playFrom = 0;
+        }     
+        console.log('setupFirstPlay from:', playFrom);
       }
+      
+      this.tech_.setCurrentTime(playFrom);
+
       this.hasPlayed_ = () => true;
       // now that we are ready, load the segment
       this.load();
@@ -1229,6 +1513,7 @@ export class MasterPlaylistController extends videojs.EventTarget {
         this.subtitleSegmentLoader_.load();
       }
     }
+    return currentTime;
   }
 
   /**
@@ -1459,6 +1744,8 @@ export class MasterPlaylistController extends videojs.EventTarget {
             !window.MediaSource.isTypeSupported(
               'video/mp4; codecs="' + mapLegacyAvcCodecs_(codecString) + '"')) {
           variant.excludeUntil = Infinity;
+          window.console.debug('excluded because codec unsupported');
+          window.console.debug(variant);
         }
       }
 
@@ -1466,13 +1753,17 @@ export class MasterPlaylistController extends videojs.EventTarget {
       // video, they are incompatible
       if (variantCodecs.codecCount !== codecCount) {
         variant.excludeUntil = Infinity;
+        window.console.debug('excluded because codecCount unequal');
       }
 
       // if h.264 is specified on the current playlist, some flavor of
       // it must be specified on all compatible variants
+      /*
       if (variantCodecs.videoCodec !== videoCodec) {
         variant.excludeUntil = Infinity;
+        window.console.debug('excluded because videoCodec unequal');
       }
+      */
 
     });
   }

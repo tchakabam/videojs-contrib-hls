@@ -6,6 +6,7 @@
  */
 import document from 'global/document';
 import PlaylistLoader from './playlist-loader';
+import SegmentLoader from './segment-loader';
 import Playlist from './playlist';
 import xhrFactory from './xhr';
 import {Decrypter, AsyncStream, decrypt} from 'aes-decrypter';
@@ -19,8 +20,11 @@ import renditionSelectionMixin from './rendition-mixin';
 import window from 'global/window';
 import PlaybackWatcher from './playback-watcher';
 import reloadSourceOnError from './reload-source-on-error';
+import PlaylistSelectors from './playlist-selectors';
 
 const Hls = {
+  PlaylistSelectors,
+  SegmentLoader,
   PlaylistLoader,
   Playlist,
   Decrypter,
@@ -158,6 +162,9 @@ const stableSort = function(array, sortFn) {
  * bandwidth, accounting for some amount of bandwidth variance
  */
 Hls.STANDARD_PLAYLIST_SELECTOR = function() {
+
+  //console.log('STANDARD_PLAYLIST_SELECTOR');
+
   let sortedPlaylists = this.playlists.master.playlists.slice();
   let bandwidthPlaylists = [];
   let bandwidthBestVariant;
@@ -391,6 +398,10 @@ class HlsHandler extends Component {
       this.masterPlaylistController_.setupAudio();
     };
 
+    this.videoTrackChange_ = () => {
+      this.masterPlaylistController_.setupVideo();
+    };
+
     this.textTrackChange_ = () => {
       this.masterPlaylistController_.setupSubtitles();
     };
@@ -469,6 +480,7 @@ class HlsHandler extends Component {
           return this.masterPlaylistController_.selectPlaylist;
         },
         set(selectPlaylist) {
+          console.log('using custom selectPlaylist');
           this.masterPlaylistController_.selectPlaylist = selectPlaylist.bind(this);
         }
       },
@@ -565,19 +577,30 @@ class HlsHandler extends Component {
 
     this.masterPlaylistController_.on('sourceopen', () => {
       this.tech_.audioTracks().addEventListener('change', this.audioTrackChange_);
+      this.tech_.videoTracks().addEventListener('change', this.videoTrackChange_);
       this.tech_.remoteTextTracks().addEventListener('change', this.textTrackChange_);
     });
 
     this.masterPlaylistController_.on('selectedinitialmedia', () => {
       // Add the manual rendition mix-in to HlsHandler
       renditionSelectionMixin(this);
+
+      this.trigger('selectedinitialmedia');
     });
 
     this.masterPlaylistController_.on('audioupdate', () => {
       // clear current audioTracks
       this.tech_.clearTracks('audio');
-      this.masterPlaylistController_.activeAudioGroup().forEach((audioTrack) => {
+      this.activeAudioGroup_().forEach((audioTrack) => {
         this.tech_.audioTracks().addTrack(audioTrack);
+      });
+    });
+
+    this.masterPlaylistController_.on('videoupdate', () => {
+      // clear current audioTracks
+      this.tech_.clearTracks('video');
+      this.activeVideoGroup_().forEach((videoTrack) => {
+        this.tech_.videoTracks().addTrack(videoTrack);
       });
     });
 
@@ -605,6 +628,10 @@ class HlsHandler extends Component {
       this.masterPlaylistController_.mediaSource));
   }
 
+  pendingSegmentInfo() {
+    return this.masterPlaylistController_.mainSegmentLoader_.pendingSegment();
+  }
+
   /**
    * Initializes the quality levels and sets listeners to update them.
    *
@@ -628,12 +655,59 @@ class HlsHandler extends Component {
   }
 
   /**
+   * Wraps MasterPlaylistController.qualitySwitchHistory for its mainSegmentLoader
+   * @returns {Array} Main quality switch history
+   */
+  qualitySwitchHistory() {
+    return this.masterPlaylistController_.qualitySwitchHistory();
+  }
+
+  metricsHistory() {
+    return this.masterPlaylistController_.mainSegmentLoader_.metricsHistory();
+  }
+
+  bufferInfo() {
+    return this.masterPlaylistController_.mainSegmentLoader_.bufferInfo();
+  }
+
+  /**
    * a helper for grabbing the active audio group from MasterPlaylistController
    *
    * @private
    */
   activeAudioGroup_() {
     return this.masterPlaylistController_.activeAudioGroup();
+  }
+
+  /**
+   * a helper for grabbing the active video group from MasterPlaylistController
+   *
+   * @private
+   */
+  activeVideoGroup_() {
+    return this.masterPlaylistController_.activeVideoGroup();
+  }
+
+  enableAudioTrack(index) {
+    var activeGroup = this.activeAudioGroup_();
+
+    activeGroup.forEach(function(track) {
+      track.enabled = false;
+    })
+    activeGroup[index].enabled = true;
+
+    this.masterPlaylistController_.setupAudio();
+  }
+
+  enableVideoTrack(index) {
+    var activeGroup = this.activeVideoGroup_();
+
+    activeGroup.forEach(function(track) {
+      track.enabled = false;
+    })
+    activeGroup[index].enabled = true;
+
+    this.masterPlaylistController_.setupVideo();
   }
 
   /**
@@ -678,6 +752,7 @@ class HlsHandler extends Component {
       this.qualityLevels_.dispose();
     }
     this.tech_.audioTracks().removeEventListener('change', this.audioTrackChange_);
+    this.tech_.videoTracks().removeEventListener('change', this.videoTrackChange_);
     this.tech_.remoteTextTracks().removeEventListener('change', this.textTrackChange_);
     super.dispose();
   }

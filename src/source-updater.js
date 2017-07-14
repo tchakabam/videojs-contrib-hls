@@ -3,7 +3,8 @@
  */
 import videojs from 'video.js';
 
-const noop = function() {};
+const MAX_BUFFERED_SECONDS = 60; // for an 8mbit stream (eg. well encoded full HD quality)
+                                       // that would be about 60Mbytes
 
 /**
  * A queue of callbacks to be serialized and applied when a
@@ -18,6 +19,10 @@ const noop = function() {};
  * SourceBuffer
  */
 export default class SourceUpdater {
+  static get MAX_BUFFERED_SECONDS() {
+    return MAX_BUFFERED_SECONDS;
+  }
+
   constructor(mediaSource, mimeType) {
     let createSourceBuffer = () => {
       this.sourceBuffer_ = mediaSource.addSourceBuffer(mimeType);
@@ -45,7 +50,6 @@ export default class SourceUpdater {
     this.pendingCallback_ = null;
     this.timestampOffset_ = 0;
     this.mediaSource = mediaSource;
-    this.processedAppend_ = false;
 
     if (mediaSource.readyState === 'closed') {
       mediaSource.addEventListener('sourceopen', createSourceBuffer);
@@ -61,11 +65,9 @@ export default class SourceUpdater {
    * @see http://w3c.github.io/media-source/#widl-SourceBuffer-abort-void
    */
   abort(done) {
-    if (this.processedAppend_) {
-      this.queueCallback_(() => {
-        this.sourceBuffer_.abort();
-      }, done);
-    }
+    this.queueCallback_(() => {
+      this.sourceBuffer_.abort();
+    }, done);
   }
 
   /**
@@ -76,8 +78,6 @@ export default class SourceUpdater {
    * @see http://www.w3.org/TR/media-source/#widl-SourceBuffer-appendBuffer-void-ArrayBuffer-data
    */
   appendBuffer(bytes, done) {
-    this.processedAppend_ = true;
-
     this.queueCallback_(() => {
       this.sourceBuffer_.appendBuffer(bytes);
     }, done);
@@ -95,6 +95,27 @@ export default class SourceUpdater {
     return this.sourceBuffer_.buffered;
   }
 
+  totalBufferedTime() {
+    let bufferedTime = 0;
+    let buffered = this.buffered();
+    if (buffered.length) {
+      bufferedTime = buffered.end(buffered.length - 1) - buffered.start(buffered.length - 1);
+    }
+    return bufferedTime;
+  }
+
+  /**
+   * Queue an update to set the duration.
+   *
+   * @param {Double} duration what to set the duration to
+   * @see http://www.w3.org/TR/media-source/#widl-MediaSource-duration
+   */
+  duration(duration) {
+    this.queueCallback_(() => {
+      this.sourceBuffer_.duration = duration;
+    });
+  }
+
   /**
    * Queue an update to remove a time range from the buffer.
    *
@@ -103,20 +124,23 @@ export default class SourceUpdater {
    * @see http://www.w3.org/TR/media-source/#widl-SourceBuffer-remove-void-double-start-unrestricted-double-end
    */
   remove(start, end) {
-    if (this.processedAppend_) {
-      this.queueCallback_(() => {
-        this.sourceBuffer_.remove(start, end);
-      }, noop);
-    }
+    this.queueCallback_(() => {
+      // avoid passing invalid remove ranges in
+      // when player resetting while nothing buffered
+      if (this.buffered().length === 0) {
+        return;
+      }
+      this.sourceBuffer_.remove(start, end);
+    }, null, true);
   }
 
   /**
-   * Whether the underlying sourceBuffer is updating or not
+   * wether the underlying sourceBuffer is updating or not
    *
    * @return {Boolean} the updating status of the SourceBuffer
    */
   updating() {
-    return !this.sourceBuffer_ || this.sourceBuffer_.updating || this.pendingCallback_;
+    return !this.sourceBuffer_ || this.sourceBuffer_.updating;
   }
 
   /**
@@ -134,22 +158,66 @@ export default class SourceUpdater {
     return this.timestampOffset_;
   }
 
+  flush() {
+    this.pendingCallback_ = null;
+    this.callbacks_ = [];
+  }
+
   /**
-   * Queue a callback to run
+   * que a callback to run
    */
-  queueCallback_(callback, done) {
-    this.callbacks_.push([callback.bind(this), done]);
+  queueCallback_(callback, done, removal = false) {
+    this.callbacks_.push([callback.bind(this), done, removal]);
     this.runCallback_();
   }
 
   /**
-   * Run a queued callback
+   * run a queued callback
    */
   runCallback_() {
     let callbacks;
 
-    if (!this.updating() &&
-        this.callbacks_.length) {
+    if (!this.callbacks_.length) {
+      // rest of the function relies on callback enqueued
+      return;
+    }
+
+    let totalBufferedTime = this.totalBufferedTime();
+
+    if (totalBufferedTime > MAX_BUFFERED_SECONDS) {
+
+      //console.log('SourceBuffer size exceeds max');
+
+      callbacks = this.callbacks_[this.callbacks_.length - 1];
+      // run callback-callback ;) indicate we're done to outer world
+      let pendingCallback = callbacks[1];
+      // clear it
+      callbacks[1] = null;
+      // run it
+      if (pendingCallback) {
+        pendingCallback();
+      }
+
+      // unjam things: if we can remove stuff try to do that first so we can append things again
+
+      // find first removal callback in queue and remove it from there
+      callbacks = this.callbacks_.slice(0).find((cb, index) => {
+        // removal flag on queue item -> we should remove it
+        return !!(cb[2] && this.callbacks_.splice(index, 1));
+      });
+                                // since we are currently exceeding limits in buffer
+                                // pretty safe to assume sourcebuffer exists?
+                                // but we could have removed it in previous "done" callback
+      if (callbacks !== undefined
+        && this.sourceBuffer_   
+        && !this.sourceBuffer_.updating) {
+        //console.log('unjaming SourceBuffer task queue by prioritizing removals');
+        this.pendingCallback_ = callbacks[1];
+        callbacks[0]();
+      }
+
+    } else if (this.sourceBuffer_ &&
+        !this.sourceBuffer_.updating) {
       callbacks = this.callbacks_.shift();
       this.pendingCallback_ = callbacks[1];
       callbacks[0]();

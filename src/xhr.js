@@ -15,11 +15,13 @@ import {
   default as videojs
 } from 'video.js';
 
+const DEFAULT_TIMEOUT_MS = 10e3;
+
 const xhrFactory = function() {
   const xhr = function XhrFunction(options, callback) {
     // Add a default timeout for all hls requests
     options = mergeOptions({
-      timeout: 45e3
+      timeout: DEFAULT_TIMEOUT_MS
     }, options);
 
     // Allow an optional user-specified function to modify the option
