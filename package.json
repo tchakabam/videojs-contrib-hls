@@ -19,6 +19,7 @@
     "build:js:browserify": "browserify . -s videojs-contrib-hls -g browserify-shim -o dist/videojs-contrib-hls.js",
     "build:js:collapse": "bundle-collapser dist/videojs-contrib-hls.js -o dist/videojs-contrib-hls.min.js",
     "build:js:uglify": "uglifyjs dist/videojs-contrib-hls.min.js --support-ie8 --comments -m -c -o dist/videojs-contrib-hls.min.js",
+    "build:js:webpack": "webpack --progress",
     "build:test:browserify": "browserify test/browserify-test.js -o dist-test/browserify-test.js",
     "build:test:webpack": "webpack test/webpack-test.js dist-test/webpack-test.js",
     "build:test": "npm-run-all build:test:manifest build:test:js build:test:browserify build:test:webpack",
@@ -27,6 +28,7 @@
     "clean": "npm-run-all -p clean:*",
     "clean:build": "node -e \"var s=require('shelljs'),d=['dist','dist-test','es5'];s.rm('-rf',d);s.mkdir('-p',d);\"",
     "clean:test": "node -e \"var b=require('./scripts/manifest-data.js'); b.clean();\"",
+    "dev:webpack": "webpack-dev-server --progress",
     "docs": "npm-run-all docs:*",
     "docs:api": "jsdoc src -r -d docs/api",
     "docs:toc": "doctoc README.md",
@@ -90,6 +92,7 @@
   ],
   "dependencies": {
     "aes-decrypter": "1.0.3",
+    "babel-polyfill": "6.23.0",
     "global": "^4.3.0",
     "m3u8-parser": "2.1.0",
     "mux.js": "4.1.5",
@@ -100,6 +103,9 @@
   },
   "devDependencies": {
     "babel": "^5.8.0",
+    "babel-core": "^6.25.0",
+    "babel-loader": "^7.1.1",
+    "babel-preset-env": "^1.6.0",
     "babelify": "^6.0.0",
     "bannerize": "^1.0.0",
     "browserify": "^11.0.0",
@@ -114,6 +120,7 @@
     "in-publish": "^2.0.0",
     "isparta": "^4.0.0",
     "istanbul": "^0.4.5",
+    "jquery": "^3.2.1",
     "jsdoc": "^3.4.0",
     "karma": "^0.13.0",
     "karma-browserify": "^4.4.0",
@@ -140,6 +147,7 @@
     "videojs-standard": "^4.0.3",
     "videojs-swf": "^5.2.0",
     "watchify": "^3.6.0",
-    "webpack": "^1.13.2"
+    "webpack": "^3.3.0",
+    "webpack-dev-server": "^2.5.1"
   }
 }

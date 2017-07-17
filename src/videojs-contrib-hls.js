@@ -4,6 +4,7 @@
  * The main file for the HLS project.
  * License: https://github.com/videojs/videojs-contrib-hls/blob/master/LICENSE
  */
+import 'babel-polyfill'
 import document from 'global/document';
 import PlaylistLoader from './playlist-loader';
 import Playlist from './playlist';
